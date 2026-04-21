@@ -1,0 +1,25 @@
+# AI agent files
+ai/
+CLAUDE.md
+.claude
+.code-review-graph
+.mcp.json
+.mcpregistry_github_token
+.mcpregistry_registry_token
+
+# Go build artifacts
+/bin/
+/dist/
+
+# Plugin
+plugin/node_modules/
+plugin/dist/
+
+# OS
+.DS_Store
+
+output/
+example/
+.vscode/
+release
+localonly

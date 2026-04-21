@@ -1,0 +1,37 @@
+{
+  "name": "@vkhanhqui/figma-mcp-go",
+  "version": "0.0.1-alpha",
+  "description": "A zero-cost, unlimited Figma MCP server — no API key, no rate limits",
+  "mcpName": "io.github.vkhanhqui/figma-mcp-go",
+  "bin": {
+    "figma-mcp-go": "bin/run.js"
+  },
+  "files": [
+    "bin/run.js",
+    "bin/darwin-amd64/",
+    "bin/darwin-arm64/",
+    "bin/linux-amd64/",
+    "bin/linux-arm64/",
+    "bin/windows-amd64/",
+    "bin/windows-arm64/"
+  ],
+  "keywords": [
+    "figma",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "design"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vkhanhqui/figma-mcp-go.git"
+  },
+  "homepage": "https://github.com/vkhanhqui/figma-mcp-go#readme",
+  "bugs": {
+    "url": "https://github.com/vkhanhqui/figma-mcp-go/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
