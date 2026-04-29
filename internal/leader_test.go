@@ -82,10 +82,10 @@ func TestLeaderHandleRPC_InvalidJSON(t *testing.T) {
 func TestLeaderHandleRPC_ValidationError(t *testing.T) {
 	l := NewLeader("127.0.0.1", 0, "")
 
-	// set_text with nodeId but missing text → validation error
+	// get_node with invalid nodeId format → validation error
 	body, _ := json.Marshal(RPCRequest{
-		Tool:    "set_text",
-		NodeIDs: []string{"1:1"},
+		Tool:    "get_node",
+		NodeIDs: []string{"invalid-id"},
 		Params:  map[string]any{},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/rpc", bytes.NewReader(body))

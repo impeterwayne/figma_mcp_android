@@ -183,7 +183,7 @@ describe("export_tokens", () => {
     expect(res?.data.css).toContain("--brand-primary:");
   });
 
-  it("skips non-solid paint styles", async () => {
+  it("includes non-solid paint styles as PAINT in JSON", async () => {
     (globalThis as any).figma.getLocalPaintStylesAsync = async () => [
       {
         id: "s:2",
@@ -193,7 +193,9 @@ describe("export_tokens", () => {
     ];
 
     const res = await handleReadStyleRequest(makeRequest("export_tokens", { format: "json" }));
-    // No _styles key since nothing was added
-    expect(res?.data.tokens["_styles"]).toBeUndefined();
+    expect(res?.data.tokens["_styles"]).toBeDefined();
+    const grad = res?.data.tokens["_styles"].paint["Gradient"]["Blue"];
+    expect(grad.type).toBe("PAINT");
+    expect(grad.value).toEqual([{ type: "GRADIENT_LINEAR" }]);
   });
 });

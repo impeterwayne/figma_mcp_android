@@ -18,7 +18,6 @@ import (
 // RegisterTools registers all MCP tools on the server.
 func RegisterTools(s *server.MCPServer, node *Node) {
 	registerReadTools(s, node)
-	registerWriteTools(s, node)
 }
 
 // RegisterPrompts registers MCP prompts on the server.

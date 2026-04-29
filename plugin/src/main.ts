@@ -1,7 +1,6 @@
 // Plugin core — entry point, UI bootstrap, and request dispatch.
 
 import { handleReadRequest } from "./read-handlers";
-import { handleWriteRequest } from "./write-handlers";
 
 const sendStatus = () => {
   figma.ui.postMessage({
@@ -16,8 +15,7 @@ const sendStatus = () => {
 
 const handleRequest = async (request: any) => {
   try {
-    const result =
-      (await handleReadRequest(request)) ?? (await handleWriteRequest(request));
+    const result = await handleReadRequest(request);
     if (result === null)
       throw new Error(`Unknown request type: ${request.type}`);
     return result;

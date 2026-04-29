@@ -75,9 +75,9 @@ describe("serializePaints", () => {
   it("returns undefined for empty array", () => {
     expect(serializePaints([])).toBeUndefined();
   });
-  it("filters out non-SOLID paints", () => {
+  it("passes through non-SOLID paints", () => {
     const paints = [{ type: "IMAGE" }, { type: "GRADIENT_LINEAR" }];
-    expect(serializePaints(paints)).toBeUndefined();
+    expect(serializePaints(paints)).toEqual(paints);
   });
   it("serializes a solid paint with opacity 1 as plain hex", () => {
     const paints = [{ type: "SOLID", color: { r: 1, g: 0, b: 0 }, opacity: 1 }];
@@ -321,9 +321,21 @@ describe("serializeStyles", () => {
     expect(result.cornerRadius).toBe(8);
   });
 
-  it("sets cornerRadius to 'mixed' for symbol", async () => {
-    const result = await serializeStyles({ cornerRadius: Symbol() });
-    expect(result.cornerRadius).toBe("mixed");
+  it("extracts individual corner radii when cornerRadius is mixed", async () => {
+    const node = {
+      cornerRadius: Symbol(),
+      topLeftRadius: 10,
+      topRightRadius: 20,
+      bottomRightRadius: 30,
+      bottomLeftRadius: 40,
+    };
+    const result = await serializeStyles(node);
+    expect(result.cornerRadius).toEqual({
+      topLeft: 10,
+      topRight: 20,
+      bottomRight: 30,
+      bottomLeft: 40,
+    });
   });
 
   it("includes padding when paddingLeft is present", async () => {

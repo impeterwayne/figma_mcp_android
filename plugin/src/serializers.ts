@@ -17,9 +17,8 @@ export const serializePaints = (paints: any) => {
 
   if (!paints || !Array.isArray(paints)) return undefined;
 
-  const result = paints
-    .filter((paint: any) => paint.type === "SOLID" && "color" in paint)
-    .map((paint: any) => {
+  const result = paints.map((paint: any) => {
+    if (paint.type === "SOLID" && "color" in paint) {
       const hex = toHex(paint.color);
       const opacity = paint.opacity != null ? paint.opacity : 1;
       if (opacity === 1) return hex;
@@ -29,19 +28,33 @@ export const serializePaints = (paints: any) => {
           .toString(16)
           .padStart(2, "0")
       );
-    });
+    }
+    return paint;
+  });
 
   return result.length > 0 ? result : undefined;
 };
 
 export const getBounds = (node: any) => {
   if ("x" in node && "y" in node && "width" in node && "height" in node) {
-    return {
+    const bounds: any = {
       x: pixelRound(node.x),
       y: pixelRound(node.y),
       width: pixelRound(node.width),
       height: pixelRound(node.height),
     };
+    if ("rotation" in node && node.rotation !== 0) {
+      bounds.rotation = pixelRound(node.rotation);
+    }
+    if ("absoluteBoundingBox" in node && node.absoluteBoundingBox) {
+      bounds.absoluteBoundingBox = {
+        x: pixelRound(node.absoluteBoundingBox.x),
+        y: pixelRound(node.absoluteBoundingBox.y),
+        width: pixelRound(node.absoluteBoundingBox.width),
+        height: pixelRound(node.absoluteBoundingBox.height),
+      };
+    }
+    return bounds;
   }
 
   return undefined;
@@ -67,11 +80,44 @@ export const serializeStyles = async (node: any) => {
     }
     const strokes = serializePaints(node.strokes);
     if (strokes !== undefined) styles.strokes = strokes;
+    
+    if ("strokeWeight" in node && node.strokeWeight !== 0) styles.strokeWeight = node.strokeWeight;
+    if ("strokeAlign" in node && node.strokeAlign !== "INSIDE") styles.strokeAlign = node.strokeAlign;
+    if ("strokeCap" in node && node.strokeCap !== "NONE") styles.strokeCap = node.strokeCap;
+    if ("strokeJoin" in node && node.strokeJoin !== "MITER") styles.strokeJoin = node.strokeJoin;
+    if ("dashPattern" in node && node.dashPattern.length > 0) styles.dashPattern = node.dashPattern;
+  }
+
+  if ("effects" in node && node.effects.length > 0) {
+    if (node.effectStyleId && typeof node.effectStyleId === "string") {
+      const style = await figma.getStyleByIdAsync(node.effectStyleId);
+      if (style) styles.effectStyle = style.name;
+    }
+    styles.effects = node.effects;
+  }
+
+  if ("opacity" in node && node.opacity < 1) {
+    styles.opacity = node.opacity;
+  }
+  
+  if ("blendMode" in node && node.blendMode !== "PASS_THROUGH" && node.blendMode !== "NORMAL") {
+    styles.blendMode = node.blendMode;
   }
 
   if ("cornerRadius" in node) {
     const cr = isMixed(node.cornerRadius) ? "mixed" : node.cornerRadius;
-    if (cr !== 0) styles.cornerRadius = cr;
+    if (cr !== 0) {
+      if (cr === "mixed") {
+        styles.cornerRadius = {
+          topLeft: node.topLeftRadius,
+          topRight: node.topRightRadius,
+          bottomRight: node.bottomRightRadius,
+          bottomLeft: node.bottomLeftRadius,
+        };
+      } else {
+        styles.cornerRadius = cr;
+      }
+    }
   }
 
   if ("paddingLeft" in node) {
@@ -137,19 +183,93 @@ export const serializeText = async (node: any, base: any) => {
       textAlignHorizontal: isMixed(node.textAlignHorizontal)
         ? "mixed"
         : node.textAlignHorizontal,
+      textAlignVertical: isMixed(node.textAlignVertical)
+        ? "mixed"
+        : node.textAlignVertical,
+      textAutoResize: node.textAutoResize !== "NONE" ? node.textAutoResize : undefined,
+      paragraphSpacing: node.paragraphSpacing !== 0 ? node.paragraphSpacing : undefined,
+      paragraphIndent: node.paragraphIndent !== 0 ? node.paragraphIndent : undefined,
     }),
   });
 };
 
 export const serializeNode = async (node: any): Promise<any> => {
   const styles = await serializeStyles(node);
-  const base = {
+  const base: any = {
     id: node.id,
     name: node.name,
     type: node.type,
     bounds: getBounds(node),
     styles,
   };
+
+  if ("layoutMode" in node && node.layoutMode !== "NONE") {
+    base.layoutMode = node.layoutMode;
+    base.itemSpacing = node.itemSpacing;
+    base.primaryAxisAlignItems = node.primaryAxisAlignItems;
+    base.counterAxisAlignItems = node.counterAxisAlignItems;
+    if (node.layoutWrap === "WRAP") base.layoutWrap = node.layoutWrap;
+  }
+  
+  if ("layoutPositioning" in node && node.layoutPositioning !== "AUTO") {
+    base.layoutPositioning = node.layoutPositioning;
+  }
+  
+  if ("layoutScrollBehavior" in node && node.layoutScrollBehavior !== "NONE") {
+    base.layoutScrollBehavior = node.layoutScrollBehavior;
+  }
+
+  if ("layoutGrids" in node && node.layoutGrids.length > 0) {
+    base.layoutGrids = node.layoutGrids;
+  }
+  
+  if ("constraints" in node) {
+    base.constraints = node.constraints;
+  }
+
+  if ("boundVariables" in node && node.boundVariables && Object.keys(node.boundVariables).length > 0) {
+    base.boundVariables = node.boundVariables;
+  }
+
+  if ("isMask" in node && node.isMask) {
+    base.isMask = true;
+  }
+
+  if ("clipsContent" in node) {
+    base.clipsContent = node.clipsContent;
+  }
+
+  if ("booleanOperation" in node) {
+    base.booleanOperation = node.booleanOperation;
+  }
+
+  if ("vectorPaths" in node && node.vectorPaths.length > 0) {
+    base.vectorPaths = node.vectorPaths;
+  }
+
+  if ("reactions" in node && node.reactions.length > 0) {
+    base.reactions = node.reactions;
+  }
+
+  if ("exportSettings" in node && node.exportSettings.length > 0) {
+    base.exportSettings = node.exportSettings;
+  }
+
+  if ("visible" in node && node.visible === false) {
+    base.visible = false;
+  }
+
+  if ("locked" in node && node.locked === true) {
+    base.locked = true;
+  }
+
+  if (node.type === "INSTANCE") {
+    base.mainComponentId = node.mainComponentId;
+    base.componentProperties = node.componentProperties;
+  } else if (node.type === "COMPONENT" || node.type === "COMPONENT_SET") {
+    base.componentPropertyDefinitions = node.componentPropertyDefinitions;
+  }
+
   if (node.type === "TEXT") return serializeText(node, base);
   if ("children" in node) {
     return Object.assign({}, base, {

@@ -248,19 +248,23 @@ export const handleReadStyleRequest = async (request: any) => {
       }
       const styleTokens: any = {};
       for (const style of paintStyles) {
+        if (style.paints.length > 0) {
+          const parts = style.name.split("/");
+          let obj = styleTokens;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!obj[parts[i]]) obj[parts[i]] = {};
+            obj = obj[parts[i]];
+          }
           if (style.paints.length === 1 && style.paints[0].type === "SOLID") {
             const paint = style.paints[0] as SolidPaint;
             const r = Math.round(paint.color.r * 255).toString(16).padStart(2, "0");
             const g = Math.round(paint.color.g * 255).toString(16).padStart(2, "0");
             const b = Math.round(paint.color.b * 255).toString(16).padStart(2, "0");
-            const parts = style.name.split("/");
-            let obj = styleTokens;
-            for (let i = 0; i < parts.length - 1; i++) {
-              if (!obj[parts[i]]) obj[parts[i]] = {};
-              obj = obj[parts[i]];
-            }
             obj[parts[parts.length - 1]] = { type: "COLOR", value: `#${r}${g}${b}` };
+          } else {
+            obj[parts[parts.length - 1]] = { type: "PAINT", value: style.paints };
           }
+        }
       }
       if (Object.keys(styleTokens).length > 0) {
         tokens["_styles"] = { paint: styleTokens };
