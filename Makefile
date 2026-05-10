@@ -3,7 +3,7 @@
 build: build-go build-ts
 
 build-go:
-	go build -o bin/figma-mcp-go ./cmd/figma-mcp-go
+	go build -o bin/figma-mcp-android ./cmd/figma-mcp-android
 
 build-ts:
 	cd plugin && bun run build

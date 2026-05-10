@@ -12,16 +12,16 @@ const goos = PLATFORM_MAP[process.platform];
 const goarch = ARCH_MAP[process.arch];
 
 if (!goos || !goarch) {
-  process.stderr.write(`[figma-mcp-go] Unsupported platform: ${process.platform}/${process.arch}\n`);
+  process.stderr.write(`[figma-mcp-android] Unsupported platform: ${process.platform}/${process.arch}\n`);
   process.exit(1);
 }
 
-const binaryName = process.platform === 'win32' ? 'figma-mcp-go.exe' : 'figma-mcp-go';
+const binaryName = process.platform === 'win32' ? 'figma-mcp-android.exe' : 'figma-mcp-android';
 const binaryPath = path.join(__dirname, `${goos}-${goarch}`, binaryName);
 
 if (!existsSync(binaryPath)) {
   process.stderr.write(
-    '[figma-mcp-go] Binary not found. Try reinstalling: npm install @vkhanhqui/figma-mcp-go\n'
+    '[figma-mcp-android] Binary not found. Try reinstalling: npm install @impeterwayne/figma-mcp-android\n'
   );
   process.exit(1);
 }

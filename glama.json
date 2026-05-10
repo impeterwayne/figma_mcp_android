@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
-  "maintainers": ["vkhanhqui"],
-  "name": "figma-mcp-go",
+  "maintainers": ["impeterwayne"],
+  "name": "figma-mcp-android",
   "description": "Figma MCP server with read-only access via plugin bridge — no API token, no rate limits. 21 tools for design inspection: document tree, styles, variables, components, and exports.",
   "license": "MIT",
   "tools": [

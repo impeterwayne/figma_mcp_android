@@ -9,14 +9,14 @@ import (
 
 func addReadDesignStrategy(s *server.MCPServer) {
 	s.AddPrompt(mcp.NewPrompt("read_design_strategy",
-		mcp.WithPromptDescription("Best practices for reading Figma designs with figma-mcp-go"),
+		mcp.WithPromptDescription("Best practices for reading Figma designs with figma-mcp-android"),
 	), func(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 		return mcp.NewGetPromptResult(
 			"Best practices for reading Figma designs",
 			[]mcp.PromptMessage{
 				mcp.NewPromptMessage(
 					mcp.RoleUser,
-					mcp.NewTextContent(`To effectively read a Figma design with figma-mcp-go:
+					mcp.NewTextContent(`To effectively read a Figma design with figma-mcp-android:
 
 1. Start with get_metadata — understand file name, pages, and current page
 2. Use get_pages to list all pages without loading their full trees

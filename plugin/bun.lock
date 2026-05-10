@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "figma-mcp-go-plugin",
+      "name": "figma-mcp-android-plugin",
       "devDependencies": {
         "@figma/plugin-typings": "^1",
         "@sveltejs/vite-plugin-svelte": "^5",

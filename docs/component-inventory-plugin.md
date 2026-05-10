@@ -29,7 +29,7 @@ The Figma Plugin UI is intentionally minimal — a single Svelte component handl
 │  🔄 AI is working…           │  ← shown when activeRequests > 0
 ├──────────────────────────────┤
 │  127.0.0.1:1994  🟢 Connected│
-│  vkhanhqui    Bug  Suggest   │
+│  impeterwayne Bug  Suggest   │
 └──────────────────────────────┘
 ```
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The plugin is the Figma-side runtime for `figma-mcp-go`. Its job is simple:
+The plugin is the Figma-side runtime for `figma-mcp-android`. Its job is simple:
 
 - accept commands from the local Go server,
 - execute those commands through the Figma Plugin API, and

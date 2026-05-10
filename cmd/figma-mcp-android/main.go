@@ -11,11 +11,11 @@ import (
 
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/vkhanhqui/figma-mcp-go/internal"
+	"github.com/impeterwayne/figma-mcp-android/internal"
 )
 
 // version is injected at build time:
-// go build -ldflags "-X main.version=1.0.0" ./cmd/figma-mcp-go
+// go build -ldflags "-X main.version=1.0.0" ./cmd/figma-mcp-android
 var version = "dev"
 
 var logger = log.New(os.Stderr, "", 0)
@@ -43,9 +43,9 @@ func main() {
 		logger.Fatalf("election start: %v", err)
 	}
 
-	logger.Printf("Starting figma-mcp-go %s (role: %s)", version, node.RoleName())
+	logger.Printf("Starting figma-mcp-android %s (role: %s)", version, node.RoleName())
 
-	s := server.NewMCPServer("figma-mcp-go", version)
+	s := server.NewMCPServer("figma-mcp-android", version)
 	internal.RegisterTools(s, node)
 	internal.RegisterPrompts(s)
 

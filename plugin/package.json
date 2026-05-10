@@ -1,5 +1,5 @@
 {
-  "name": "figma-mcp-go-plugin",
+  "name": "figma-mcp-android-plugin",
   "private": true,
   "type": "module",
   "scripts": {

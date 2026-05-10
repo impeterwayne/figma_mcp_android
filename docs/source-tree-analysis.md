@@ -2,14 +2,14 @@
 
 ## Overview
 
-This document outlines the directory structure of the **figma-mcp-go** monorepo, covering only version-controlled files.
+This document outlines the directory structure of the **figma-mcp-android** monorepo, covering only version-controlled files.
 
 ## Directory Tree
 
 ```text
-figma-mcp-go/
+figma-mcp-android/
 ├── cmd/
-│   └── figma-mcp-go/
+│   └── figma-mcp-android/
 │       └── main.go              # Go entry point (flag parsing, startup)
 ├── internal/
 │   ├── bridge.go                # WebSocket bridge to Figma Plugin
@@ -116,7 +116,7 @@ figma-mcp-go/
 
 | Part          | Entry Point                | Build Output |
 |---------------|----------------------------|--------------|
-| Go Backend    | `cmd/figma-mcp-go/main.go` | `bin/figma-mcp-go` binary (git-ignored) |
+| Go Backend    | `cmd/figma-mcp-android/main.go` | `bin/figma-mcp-android` binary (git-ignored) |
 | Plugin UI     | `plugin/src/ui/main.ts`    | `plugin/dist/index.html` (git-ignored) |
 | Plugin Core   | `plugin/src/main.ts`       | `plugin/dist/code.js` (git-ignored) |
 | NPM CLI       | `npm/bin/run.js`           | Spawns Go binary |

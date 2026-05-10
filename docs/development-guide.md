@@ -14,7 +14,7 @@
 ```bash
 go mod download
 make build-go
-# or: go build -o bin/figma-mcp-go ./cmd/figma-mcp-go
+# or: go build -o bin/figma-mcp-android ./cmd/figma-mcp-android
 ```
 
 ### 2. Figma Plugin
@@ -48,8 +48,8 @@ npm install
 ## Running the Server
 
 ```bash
-./bin/figma-mcp-go                          # default localhost:1994
-./bin/figma-mcp-go --ip 127.0.0.1 --port 3000  # custom
+./bin/figma-mcp-android                          # default localhost:1994
+./bin/figma-mcp-android --ip 127.0.0.1 --port 3000  # custom
 ```
 
 ## Architecture Notes for Contributors

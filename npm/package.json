@@ -1,10 +1,10 @@
 {
-  "name": "@vkhanhqui/figma-mcp-go",
+  "name": "@impeterwayne/figma-mcp-android",
   "version": "0.0.1-alpha",
   "description": "A zero-cost, unlimited Figma MCP server — no API key, no rate limits",
-  "mcpName": "io.github.vkhanhqui/figma-mcp-go",
+  "mcpName": "io.github.impeterwayne/figma-mcp-android",
   "bin": {
-    "figma-mcp-go": "bin/run.js"
+    "figma-mcp-android": "bin/run.js"
   },
   "files": [
     "bin/run.js",
@@ -25,11 +25,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vkhanhqui/figma-mcp-go.git"
+    "url": "git+https://github.com/impeterwayne/figma-mcp-android.git"
   },
-  "homepage": "https://github.com/vkhanhqui/figma-mcp-go#readme",
+  "homepage": "https://github.com/impeterwayne/figma-mcp-android#readme",
   "bugs": {
-    "url": "https://github.com/vkhanhqui/figma-mcp-go/issues"
+    "url": "https://github.com/impeterwayne/figma-mcp-android/issues"
   },
   "engines": {
     "node": ">=18.0.0"

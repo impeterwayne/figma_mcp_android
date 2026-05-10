@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document details the communication pathways and boundaries between the three parts of the figma-mcp-go project.
+This document details the communication pathways and boundaries between the three parts of the figma-mcp-android project.
 
 ## End-to-End Architecture
 

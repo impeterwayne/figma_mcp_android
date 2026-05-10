@@ -12,7 +12,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/vkhanhqui/figma-mcp-go/internal/prompts"
+	"github.com/impeterwayne/figma-mcp-android/internal/prompts"
 )
 
 // RegisterTools registers all MCP tools on the server.

@@ -1,16 +1,16 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.vkhanhqui/figma-mcp-go",
+  "name": "io.github.impeterwayne/figma-mcp-android",
   "description": "Figma MCP server with read-only access via plugin — no API token, no rate limits. 21 tools.",
   "repository": {
-    "url": "https://github.com/vkhanhqui/figma-mcp-go",
+    "url": "https://github.com/impeterwayne/figma-mcp-android",
     "source": "github"
   },
   "version": "0.1.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@vkhanhqui/figma-mcp-go",
+      "identifier": "@impeterwayne/figma-mcp-android",
       "version": "0.1.0",
       "transport": {
         "type": "stdio"
