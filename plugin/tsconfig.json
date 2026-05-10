@@ -4,6 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2019", "DOM"],
+    "types": ["@figma/plugin-typings", "bun-types"],
     "strict": false,
     "noEmit": true
   },

@@ -44,11 +44,6 @@ design system's named styles or variables. Report findings and optionally fix th
    | Node ID | Node Name | Issue | Raw Value | Matching Style |
    |---------|-----------|-------|-----------|----------------|
 
-5. **Fix (optional, ask user first)**
-   For each node with a matching style, call:
-     apply_style_to_node(nodeId, styleId, target)
-   Batch nodes by styleId to minimize round trips.
-
 ## Rules
 - Never change a node's visual appearance — only link it to a style that already matches.
 - Skip INSTANCE nodes whose overrides intentionally diverge from the main component.
