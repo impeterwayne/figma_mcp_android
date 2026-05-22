@@ -39,6 +39,7 @@
 - [State Management — Plugin](./state-management-plugin.md) — Reactive state, data flow diagrams
 - [UI Components — Plugin](./ui-components-plugin.md) — Build pipeline, styling
 - [Development Guide](./development-guide.md) — Setup, commands, contributor notes
+- [MCP NPX Setup](./npx-setup.md) — How to configure MCP clients to use this server via npx
 
 ## Getting Started
 

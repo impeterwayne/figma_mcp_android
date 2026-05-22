@@ -1,0 +1,10 @@
+{
+  "name": "svg2vectordrawable-runtime",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "svg-path-bounds": "^1.0.1",
+    "svgo": "^4.0.0",
+    "svgpath": "^2.5.0"
+  }
+}

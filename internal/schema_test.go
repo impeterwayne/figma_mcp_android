@@ -232,6 +232,21 @@ func TestValidateRPC_ScanNodesByTypes(t *testing.T) {
 	}
 }
 
+func TestValidateRPC_ConvertSVGToAndroidDrawable(t *testing.T) {
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, nil); msg == "" {
+		t.Error("expected error when svg and svgPath are both missing")
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svg": "<svg/>", "svgPath": "icon.svg"}); msg != "" {
+		t.Errorf("expected source-compatible behavior when both svg and svgPath are provided, got: %s", msg)
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svg": "<svg/>", "floatPrecision": float64(7)}); msg == "" {
+		t.Error("expected error for out-of-range floatPrecision")
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svg": "<svg/>", "floatPrecision": float64(2)}); msg != "" {
+		t.Errorf("unexpected error: %s", msg)
+	}
+}
+
 func TestValidateRPC_UnknownTool(t *testing.T) {
 	// unknown tools pass through with no error
 	msg := ValidateRPC("unknown_tool", nil, nil)

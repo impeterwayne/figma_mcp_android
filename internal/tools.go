@@ -18,6 +18,7 @@ import (
 // RegisterTools registers all MCP tools on the server.
 func RegisterTools(s *server.MCPServer, node *Node) {
 	registerReadTools(s, node)
+	registerSVGTools(s)
 }
 
 // RegisterPrompts registers MCP prompts on the server.
@@ -232,10 +233,11 @@ func writeBase64(b64, outputPath string) (int, error) {
 }
 
 func resolveOutputPath(outputPath, workDir string) (string, error) {
-	if filepath.IsAbs(outputPath) {
-		return mustBeInsideDir(filepath.Clean(outputPath), workDir)
+	cleaned := filepath.Clean(outputPath)
+	if filepath.IsAbs(cleaned) || filepath.IsAbs(filepath.FromSlash(outputPath)) {
+		return mustBeInsideDir(cleaned, workDir)
 	}
-	return mustBeInsideDir(filepath.Join(workDir, outputPath), workDir)
+	return mustBeInsideDir(filepath.Clean(filepath.Join(workDir, cleaned)), workDir)
 }
 
 func mustBeInsideDir(resolved, workDir string) (string, error) {

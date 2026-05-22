@@ -51,16 +51,6 @@ func ValidateRPC(tool string, nodeIDs []string, params map[string]interface{}) s
 			}
 		}
 
-	case "export_frames_to_pdf":
-		if len(nodeIDs) == 0 {
-			return "nodeIds is required and must not be empty"
-		}
-		for _, id := range nodeIDs {
-			if !ValidNodeID(id) {
-				return fmt.Sprintf("invalid nodeId: %s — must use colon format e.g. 4029:12345", id)
-			}
-		}
-
 	case "get_screenshot":
 		for _, id := range nodeIDs {
 			if !ValidNodeID(id) {
@@ -154,6 +144,18 @@ func ValidateRPC(tool string, nodeIDs []string, params map[string]interface{}) s
 			case "json", "css":
 			default:
 				return fmt.Sprintf("format must be json or css, got: %s", format)
+			}
+		}
+
+	case "convert_svg_to_android_drawable":
+		svg, _ := params["svg"].(string)
+		svgPath, _ := params["svgPath"].(string)
+		if strings.TrimSpace(svg) == "" && strings.TrimSpace(svgPath) == "" {
+			return "either svg or svgPath is required"
+		}
+		if precision, ok := params["floatPrecision"].(float64); ok {
+			if precision < 0 || precision > 6 || precision != float64(int(precision)) {
+				return "floatPrecision must be an integer between 0 and 6"
 			}
 		}
 	}

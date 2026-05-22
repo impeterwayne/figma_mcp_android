@@ -48,7 +48,6 @@ This document details the complete set of tools exposed by the Go Model Context 
 ## Exports
 - `get_screenshot`: Export a screenshot of one or more nodes as base64-encoded image data (held in memory).
 - `save_screenshots`: Export screenshots for multiple nodes and write them to the local filesystem.
-- `export_frames_to_pdf`: Export multiple frames as a single multi-page PDF file.
 
 ## Node Creation
 - `create_frame`: Create a new frame on the current page or inside a parent node.

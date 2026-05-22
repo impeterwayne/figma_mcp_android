@@ -149,7 +149,8 @@ func TestResolveOutputPath_Traversal_Blocked(t *testing.T) {
 
 func TestResolveOutputPath_AbsoluteOutsideDir_Blocked(t *testing.T) {
 	dir := t.TempDir()
-	_, err := resolveOutputPath("/etc/passwd", dir)
+	outside := filepath.Join(filepath.Dir(dir), "outside.png")
+	_, err := resolveOutputPath(outside, dir)
 	if err == nil {
 		t.Error("expected error for absolute path outside working dir")
 	}

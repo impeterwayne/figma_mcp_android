@@ -1,7 +1,7 @@
 {
   "name": "@impeterwayne/figma-mcp-android",
-  "version": "0.0.1-alpha",
-  "description": "A zero-cost, unlimited Figma MCP server — no API key, no rate limits",
+  "version": "0.1.0",
+  "description": "Figma MCP server with read-only access via plugin bridge — no API token, no rate limits. 21 tools for design inspection.",
   "mcpName": "io.github.impeterwayne/figma-mcp-android",
   "bin": {
     "figma-mcp-android": "bin/run.js"
@@ -13,23 +13,28 @@
     "bin/linux-amd64/",
     "bin/linux-arm64/",
     "bin/windows-amd64/",
-    "bin/windows-arm64/"
+    "bin/windows-arm64/",
+    "bin/svg2vectordrawable_runtime/"
   ],
   "keywords": [
     "figma",
     "mcp",
     "model-context-protocol",
     "ai",
-    "design"
+    "android"
   ],
   "license": "MIT",
+  "scripts": {
+    "build": "make -C .. build-npm",
+    "pack:dry-run": "make -C .. validate-npm-pack"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/impeterwayne/figma-mcp-android.git"
+    "url": "git+https://github.com/impeterwayne/figma_mcp_android.git"
   },
-  "homepage": "https://github.com/impeterwayne/figma-mcp-android#readme",
+  "homepage": "https://github.com/impeterwayne/figma_mcp_android#readme",
   "bugs": {
-    "url": "https://github.com/impeterwayne/figma-mcp-android/issues"
+    "url": "https://github.com/impeterwayne/figma_mcp_android/issues"
   },
   "engines": {
     "node": ">=18.0.0"

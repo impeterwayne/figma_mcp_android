@@ -59,32 +59,6 @@ export const handleReadExportRequest = async (request: any) => {
       };
     }
 
-    case "export_frames_to_pdf": {
-      const nodeIds: string[] = request.nodeIds ?? [];
-      if (nodeIds.length === 0) {
-        throw new Error("nodeIds is required and must not be empty");
-      }
-      const frames: any[] = [];
-      for (const id of nodeIds) {
-        const node = await figma.getNodeByIdAsync(id);
-        if (!node || node.type === "DOCUMENT" || node.type === "PAGE") {
-          throw new Error(`Node ${id} not found or is not exportable`);
-        }
-        const bytes = await (node as any).exportAsync({ format: "PDF" });
-        const base64 = figma.base64Encode(bytes);
-        frames.push({
-          nodeId: node.id,
-          nodeName: node.name,
-          base64,
-        });
-      }
-      return {
-        type: request.type,
-        requestId: request.requestId,
-        data: { frames },
-      };
-    }
-
     default:
       return null;
   }

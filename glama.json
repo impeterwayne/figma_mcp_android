@@ -24,7 +24,6 @@
     { "name": "get_reactions", "description": "Prototype/interaction reactions on a node" },
     { "name": "get_screenshot", "description": "Base64 image of node(s)" },
     { "name": "save_screenshots", "description": "Write screenshots to disk" },
-    { "name": "export_frames_to_pdf", "description": "Export multiple frames as a single multi-page PDF" },
     { "name": "export_tokens", "description": "Export design tokens" }
   ]
 }

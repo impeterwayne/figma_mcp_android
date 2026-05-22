@@ -6,6 +6,7 @@ CLAUDE.md
 .mcp.json
 .mcpregistry_github_token
 .mcpregistry_registry_token
+.antigravitycli/
 
 # Go build artifacts
 /bin/
