@@ -70,20 +70,23 @@ To add the server in Windsurf:
 
 To add the server in Opencode:
 
-1. Open your Opencode settings or configuration file where MCP servers are defined.
+1. Open your `opencode.json` configuration file in your project root (or global config at `~/.config/opencode/opencode.json`).
 2. Add the following configuration:
 
 ```json
 {
-  "mcpServers": {
-    "figma-mcp-android": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@impeterwayne/figma-mcp-android"
-      ]
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+        "figma-mcp-android": {
+            "type": "local",
+            "command": [
+                "npx",
+                "-y",
+                "@impeterwayne/figma-mcp-android@latest"
+            ],
+            "enabled": true
+        }
     }
-  }
 }
 ```
 

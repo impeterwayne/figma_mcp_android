@@ -68,16 +68,22 @@ Warning: if you bind the server to a non-loopback address such as `0.0.0.0`, it 
 claude mcp add figma-mcp-android -- npx -y @impeterwayne/figma-mcp-android@latest
 ```
 
-#### Project `.mcp.json`
+#### Project `opencode.json`
 
 ```json
 {
-  "mcpServers": {
-    "figma-mcp-android": {
-      "command": "npx",
-      "args": ["-y", "@impeterwayne/figma-mcp-android"]
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+        "figma-mcp-android": {
+            "type": "local",
+            "command": [
+                "npx",
+                "-y",
+                "@impeterwayne/figma-mcp-android@latest"
+            ],
+            "enabled": true
+        }
     }
-  }
 }
 ```
 
