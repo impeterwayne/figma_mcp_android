@@ -68,6 +68,7 @@ jobs:
       - name: Publish to npm
         working-directory: npm
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.TOKEN }}
           VERSION: ${{ steps.version.outputs.value }}
         run: |
           npm install -g npm@latest
