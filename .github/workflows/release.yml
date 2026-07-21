@@ -62,10 +62,12 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Publish to npm
         working-directory: npm
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.TOKEN }}
           VERSION: ${{ steps.version.outputs.value }}
         run: |
           cp ../README.md .
