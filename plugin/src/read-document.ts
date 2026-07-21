@@ -91,7 +91,7 @@ export const handleReadDocumentRequest = async (request: any) => {
           }
           if ("fills" in instChild && "fills" in compChild && !isMixed(instChild.fills) && !isMixed(compChild.fills)) {
             if (JSON.stringify(instChild.fills) !== JSON.stringify(compChild.fills)) {
-              propChanges.fills = instChild.fills;
+              propChanges.fills = serializePaints(instChild.fills);
             }
           }
 

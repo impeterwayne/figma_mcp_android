@@ -17,7 +17,7 @@ export const handleReadStyleRequest = async (request: any) => {
           paints: paintStyles.map((s) => ({
             id: s.id,
             name: s.name,
-            paints: s.paints,
+            paints: serializePaints(s.paints),
           })),
           text: textStyles.map((s) => ({
             id: s.id,
@@ -262,7 +262,7 @@ export const handleReadStyleRequest = async (request: any) => {
             const b = Math.round(paint.color.b * 255).toString(16).padStart(2, "0");
             obj[parts[parts.length - 1]] = { type: "COLOR", value: `#${r}${g}${b}` };
           } else {
-            obj[parts[parts.length - 1]] = { type: "PAINT", value: style.paints };
+            obj[parts[parts.length - 1]] = { type: "PAINT", value: serializePaints(style.paints) };
           }
         }
       }

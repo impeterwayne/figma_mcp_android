@@ -18,6 +18,8 @@ export const serializePaints = (paints: any) => {
   if (!paints || !Array.isArray(paints)) return undefined;
 
   const result = paints.map((paint: any) => {
+    if (!paint || typeof paint !== "object") return paint;
+
     if (paint.type === "SOLID" && "color" in paint) {
       const hex = toHex(paint.color);
       const opacity = paint.opacity != null ? paint.opacity : 1;
@@ -29,7 +31,57 @@ export const serializePaints = (paints: any) => {
           .padStart(2, "0")
       );
     }
-    return paint;
+
+    if (paint.type && typeof paint.type === "string" && paint.type.startsWith("GRADIENT_")) {
+      const gradientObj: any = {
+        type: paint.type,
+      };
+      if (Array.isArray(paint.gradientStops)) {
+        gradientObj.gradientStops = paint.gradientStops.map((stop: any) => {
+          const stopColor = stop.color;
+          let hex = stopColor ? toHex(stopColor) : "#000000";
+          const alpha = stopColor && stopColor.a != null ? stopColor.a : 1;
+          if (alpha < 1) {
+            hex += Math.round(alpha * 255)
+              .toString(16)
+              .padStart(2, "0");
+          }
+          return {
+            position: pixelRound(stop.position ?? 0),
+            color: hex,
+          };
+        });
+      }
+      if (paint.gradientTransform) {
+        gradientObj.gradientTransform = paint.gradientTransform;
+      }
+      if (paint.opacity != null && paint.opacity < 1) {
+        gradientObj.opacity = paint.opacity;
+      }
+      if (paint.blendMode && paint.blendMode !== "NORMAL") {
+        gradientObj.blendMode = paint.blendMode;
+      }
+      if (paint.visible === false) {
+        gradientObj.visible = false;
+      }
+      return gradientObj;
+    }
+
+    if (paint.type === "IMAGE") {
+      const imageObj: any = { type: "IMAGE" };
+      if (paint.scaleMode) imageObj.scaleMode = paint.scaleMode;
+      if (paint.imageHash) imageObj.imageHash = paint.imageHash;
+      if (paint.opacity != null && paint.opacity < 1) imageObj.opacity = paint.opacity;
+      if (paint.blendMode && paint.blendMode !== "NORMAL") imageObj.blendMode = paint.blendMode;
+      if (paint.visible === false) imageObj.visible = false;
+      return imageObj;
+    }
+
+    const genericPaint: any = { type: paint.type };
+    if (paint.opacity != null && paint.opacity < 1) genericPaint.opacity = paint.opacity;
+    if (paint.blendMode && paint.blendMode !== "NORMAL") genericPaint.blendMode = paint.blendMode;
+    if (paint.visible === false) genericPaint.visible = false;
+    return genericPaint;
   });
 
   return result.length > 0 ? result : undefined;

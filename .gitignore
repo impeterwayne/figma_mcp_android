@@ -13,7 +13,7 @@ CLAUDE.md
 /dist/
 
 # Plugin
-plugin/node_modules/
+**/node_modules/
 plugin/dist/
 
 # OS
