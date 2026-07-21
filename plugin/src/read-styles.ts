@@ -1,4 +1,4 @@
-import { serializeVariableValue } from "./serializers";
+import { serializePaints, serializeVariableValue } from "./serializers";
 
 export const handleReadStyleRequest = async (request: any) => {
   switch (request.type) {
