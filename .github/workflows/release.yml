@@ -29,8 +29,8 @@ jobs:
         run: |
           for GOOS in darwin linux windows; do
             for GOARCH in amd64 arm64; do
-              BIN="figma-mcp-go"
-              if [ "$GOOS" = "windows" ]; then BIN="figma-mcp-go.exe"; fi
+              BIN="figma-mcp-android"
+              if [ "$GOOS" = "windows" ]; then BIN="figma-mcp-android.exe"; fi
 
               OUTDIR="npm/bin/${GOOS}-${GOARCH}"
               mkdir -p "$OUTDIR"
@@ -38,7 +38,7 @@ jobs:
               GOOS=$GOOS GOARCH=$GOARCH go build \
                 -ldflags "-X main.version=$VERSION" \
                 -o "$OUTDIR/$BIN" \
-                ./cmd/figma-mcp-go
+                ./cmd/figma-mcp-android
 
               if [ "$GOOS" != "windows" ]; then chmod +x "$OUTDIR/$BIN"; fi
             done
