@@ -190,6 +190,37 @@ func TestExecuteConvertSVGToAndroidDrawable_AllowsBothSvgAndSvgPathLikeSource(t 
 	}
 }
 
+func TestExecuteConvertSVGToAndroidDrawable_Base64AndDataURI(t *testing.T) {
+	base64SVG := "PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGQ9Ik0yIDIgTDIyIDIgTDIyIDIyIFoiIGZpbGw9IiMxMjM0NTYiLz48L3N2Zz4="
+	dataURI := "data:image/svg+xml;base64," + base64SVG
+
+	// 1. Raw Base64
+	res1, err := executeConvertSVGToAndroidDrawable(nil, mcp.CallToolRequest{Params: mcp.CallToolParams{Arguments: map[string]any{
+		"svg":   base64SVG,
+		"cache": false,
+	}}})
+	if err != nil || res1.IsError {
+		t.Fatalf("failed raw base64 SVG conversion: %v, res: %+v", err, res1)
+	}
+	p1 := decodeSVGVectorResult(t, res1)
+	if !strings.Contains(p1.VectorDrawable, `<vector`) {
+		t.Fatalf("expected valid vector XML from base64 input, got: %s", p1.VectorDrawable)
+	}
+
+	// 2. Data URI
+	res2, err := executeConvertSVGToAndroidDrawable(nil, mcp.CallToolRequest{Params: mcp.CallToolParams{Arguments: map[string]any{
+		"svg":   dataURI,
+		"cache": false,
+	}}})
+	if err != nil || res2.IsError {
+		t.Fatalf("failed data URI SVG conversion: %v, res: %+v", err, res2)
+	}
+	p2 := decodeSVGVectorResult(t, res2)
+	if !strings.Contains(p2.VectorDrawable, `<vector`) {
+		t.Fatalf("expected valid vector XML from data URI input, got: %s", p2.VectorDrawable)
+	}
+}
+
 func decodeSVGVectorResult(t *testing.T, result *mcp.CallToolResult) svgVectorResult {
 	t.Helper()
 	if len(result.Content) == 0 {

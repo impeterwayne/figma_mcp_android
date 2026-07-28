@@ -43,7 +43,8 @@ func addReadDesignStrategy(s *server.MCPServer) {
 12. Use get_reactions to inspect prototype interactions on a node
 13. Call get_screenshot last and only when visual confirmation is needed — it is expensive
 14. Node IDs use colon format: 4029:12345 — never use hyphens
-15. get_local_components returns componentSets and variantProperties for variant-aware inspection`),
+15. get_local_components returns componentSets and variantProperties for variant-aware inspection
+16. To extract vector assets (icons/illustrations) from Figma for Android apps, export the vector node using get_screenshot(format='SVG') or save_screenshots(format='SVG'), then pass the resulting SVG markup, base64 string, or svgPath to convert_svg_to_android_drawable to generate Android VectorDrawable XML (e.g. res/drawable/ic_*.xml)`),
 				),
 			},
 		), nil

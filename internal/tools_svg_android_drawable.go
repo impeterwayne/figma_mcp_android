@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -114,15 +116,15 @@ var globalSVGVectorCache = newSVGVectorCache()
 
 func registerSVGTools(s *server.MCPServer) {
 	s.AddTool(mcp.NewTool(svgVectorToolName,
-		mcp.WithDescription("Convert inline SVG markup or an SVG file into Android VectorDrawable XML quickly, optionally writing to disk. Uses the same JS conversion pipeline as android-mcp-toolkit for exact behavior parity."),
+		mcp.WithDescription("Convert inline SVG markup, base64-encoded SVG, or an SVG file into Android VectorDrawable XML for Android projects (res/drawable/ic_*.xml). Workflow: 1) Export vector node from Figma via get_screenshot(format='SVG') or save_screenshots(format='SVG'); 2) Pass the SVG markup, base64 data, or svgPath to this tool to generate VectorDrawable XML."),
 		mcp.WithString("svg",
-			mcp.Description("Inline SVG markup to convert. Provide either svg or svgPath."),
+			mcp.Description("Inline SVG markup, base64-encoded SVG, or data URI to convert. Provide either svg or svgPath."),
 		),
 		mcp.WithString("svgPath",
-			mcp.Description("Path to an SVG file to read. Provide either svgPath or svg."),
+			mcp.Description("Path to an SVG file on disk to convert into VectorDrawable XML. Provide either svgPath or svg."),
 		),
 		mcp.WithString("outputPath",
-			mcp.Description("Optional output path for generated VectorDrawable XML."),
+			mcp.Description("Optional file path to write generated VectorDrawable XML directly (e.g. 'app/src/main/res/drawable/ic_star.xml')."),
 		),
 		mcp.WithNumber("floatPrecision",
 			mcp.Description("Decimal precision when serializing coordinates, integer 0-6. Default 2."),
@@ -255,7 +257,7 @@ func parseSVGVectorToolParams(args map[string]interface{}) (svgVectorToolParams,
 
 func loadSVGSource(params svgVectorToolParams) (string, string, error) {
 	if strings.TrimSpace(params.SVG) != "" {
-		return params.SVG, "inline", nil
+		return normalizeSVGContent(params.SVG), "inline", nil
 	}
 	resolvedPath, err := filepath.Abs(params.SVGPath)
 	if err != nil {
@@ -265,7 +267,42 @@ func loadSVGSource(params svgVectorToolParams) (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("read svgPath: %w", err)
 	}
-	return string(data), "file", nil
+	return normalizeSVGContent(string(data)), "file", nil
+}
+
+func normalizeSVGContent(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return raw
+	}
+	if strings.HasPrefix(trimmed, "data:") {
+		parts := strings.SplitN(trimmed, ",", 2)
+		if len(parts) == 2 {
+			header := parts[0]
+			dataPart := parts[1]
+			if strings.Contains(header, ";base64") {
+				if decoded, err := base64.StdEncoding.DecodeString(dataPart); err == nil {
+					return string(decoded)
+				}
+				if decoded, err := base64.RawStdEncoding.DecodeString(dataPart); err == nil {
+					return string(decoded)
+				}
+			}
+			if unescaped, err := url.QueryUnescape(dataPart); err == nil {
+				return unescaped
+			}
+			return dataPart
+		}
+	}
+	if !strings.HasPrefix(trimmed, "<") {
+		if decoded, err := base64.StdEncoding.DecodeString(trimmed); err == nil && strings.Contains(string(decoded), "<svg") {
+			return string(decoded)
+		}
+		if decoded, err := base64.RawStdEncoding.DecodeString(trimmed); err == nil && strings.Contains(string(decoded), "<svg") {
+			return string(decoded)
+		}
+	}
+	return raw
 }
 
 func computeSVGVectorCacheKey(svgCode string, params svgVectorToolParams) string {
@@ -299,7 +336,11 @@ func convertSVGToVectorDrawable(svgCode string, params svgVectorToolParams) (str
 		return "", fmt.Errorf("marshal runner payload: %w", err)
 	}
 
-	cmd := exec.Command(nodeExecutableName(), "runner.js")
+	nodeBin, err := nodeExecutableName()
+	if err != nil {
+		return "", err
+	}
+	cmd := exec.Command(nodeBin, "runner.js")
 	cmd.Dir = runtimeDir
 	cmd.Stdin = bytes.NewReader(encoded)
 	var stdout bytes.Buffer
@@ -331,20 +372,46 @@ func convertSVGToVectorDrawable(svgCode string, params svgVectorToolParams) (str
 }
 
 func svgVectorRuntimeDir() (string, error) {
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("locate current file")
+	candidates := make([]string, 0, 5)
+
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		candidates = append(candidates,
+			filepath.Join(exeDir, svgVectorRuntimeDirName),
+			filepath.Join(exeDir, "internal", svgVectorRuntimeDirName),
+			filepath.Join(filepath.Dir(exeDir), svgVectorRuntimeDirName),
+		)
 	}
-	runtimeDir := filepath.Join(filepath.Dir(currentFile), svgVectorRuntimeDirName)
-	if _, err := os.Stat(filepath.Join(runtimeDir, "runner.js")); err != nil {
-		return "", fmt.Errorf("svg runtime missing: %w", err)
+
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates,
+			filepath.Join(wd, svgVectorRuntimeDirName),
+			filepath.Join(wd, "internal", svgVectorRuntimeDirName),
+		)
 	}
-	return runtimeDir, nil
+
+	if _, currentFile, _, ok := runtime.Caller(0); ok {
+		candidates = append(candidates, filepath.Join(filepath.Dir(currentFile), svgVectorRuntimeDirName))
+	}
+
+	for _, dir := range candidates {
+		if _, err := os.Stat(filepath.Join(dir, "runner.js")); err == nil {
+			return dir, nil
+		}
+	}
+
+	return "", fmt.Errorf("svg runtime missing (checked directories: %v)", candidates)
 }
 
-func nodeExecutableName() string {
+func nodeExecutableName() (string, error) {
+	names := []string{"node"}
 	if runtime.GOOS == "windows" {
-		return "node.exe"
+		names = []string{"node.exe", "node"}
 	}
-	return "node"
+	for _, name := range names {
+		if path, err := exec.LookPath(name); err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("Node.js runtime not found on system PATH. Please install Node.js to use convert_svg_to_android_drawable")
 }

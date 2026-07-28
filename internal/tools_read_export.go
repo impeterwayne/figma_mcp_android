@@ -9,7 +9,7 @@ import (
 
 func registerReadExportTools(s *server.MCPServer, node *Node) {
 	s.AddTool(mcp.NewTool("get_screenshot",
-		mcp.WithDescription("Export a screenshot of one or more nodes as base64-encoded image data (held in memory). Use save_screenshots instead when you want to write images directly to disk without base64 in the response."),
+		mcp.WithDescription("Export a screenshot of one or more nodes as base64-encoded image data (held in memory). For SVG format (format='SVG'), the returned SVG base64 data can be converted to Android VectorDrawable XML using convert_svg_to_android_drawable. Use save_screenshots instead when you want to write images directly to disk."),
 		mcp.WithArray("nodeIds",
 			mcp.Description("Optional node IDs to export, colon format. If empty, exports current selection."),
 			mcp.WithStringItems(),
@@ -35,7 +35,7 @@ func registerReadExportTools(s *server.MCPServer, node *Node) {
 	})
 
 	s.AddTool(mcp.NewTool("save_screenshots",
-		mcp.WithDescription("Export screenshots for multiple nodes and write them to the local filesystem. Returns file metadata (path, size, dimensions) — no base64 in the response. Use get_screenshot instead when you need the image data in memory."),
+		mcp.WithDescription("Export screenshots for multiple nodes and write them to the local filesystem. For SVG format (format='SVG'), the output SVG file can be converted to Android VectorDrawable XML using convert_svg_to_android_drawable. Returns file metadata (path, size, dimensions) — no base64 in the response."),
 		mcp.WithArray("items",
 			mcp.Required(),
 			mcp.Description("List of {nodeId, outputPath, format?, scale?} objects"),

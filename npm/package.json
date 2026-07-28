@@ -1,6 +1,6 @@
 {
   "name": "@impeterwayne/figma-mcp-android",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Figma MCP server with read-only access via plugin bridge — no API token, no rate limits. 21 tools for design inspection.",
   "mcpName": "io.github.impeterwayne/figma-mcp-android",
   "bin": {
