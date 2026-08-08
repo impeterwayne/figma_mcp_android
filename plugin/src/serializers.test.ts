@@ -11,6 +11,8 @@ import {
   serializeStyles,
   serializeText,
   serializeNode,
+  sanitizeSymbols,
+  serializeReactions,
 } from "./serializers";
 
 // ── Figma global mock ─────────────────────────────────────────────────────────
@@ -541,3 +543,318 @@ describe("serializeNode", () => {
     expect(result.children[0].id).toBe("1:4");
   });
 });
+
+describe("sanitizeSymbols", () => {
+  it("converts top-level symbol to 'mixed'", () => {
+    expect(sanitizeSymbols(Symbol("mixed"))).toBe("mixed");
+  });
+
+  it("converts nested symbols in objects and arrays to 'mixed'", () => {
+    const input = {
+      fontName: Symbol("mixed"),
+      styles: {
+        fontSize: 16,
+        fontWeight: Symbol("mixed"),
+      },
+      list: [Symbol("mixed"), 123, "hello"],
+    };
+    expect(sanitizeSymbols(input)).toEqual({
+      fontName: "mixed",
+      styles: {
+        fontSize: 16,
+        fontWeight: "mixed",
+      },
+      list: ["mixed", 123, "hello"],
+    });
+  });
+
+  it("passes primitive values unchanged", () => {
+    expect(sanitizeSymbols("hello")).toBe("hello");
+    expect(sanitizeSymbols(123)).toBe(123);
+    expect(sanitizeSymbols(null)).toBeNull();
+  });
+
+  it("returns a symbol-free payload by reference instead of cloning it", () => {
+    const input = { data: { nodes: [{ id: "1:1", styles: { fills: ["#ffffff"] } }] } };
+    expect(sanitizeSymbols(input)).toBe(input);
+  });
+
+  it("clones only the branches that contain a symbol", () => {
+    const clean = { id: "1:2", styles: { fills: ["#000000"] } };
+    const input = { data: { clean, dirty: { id: "1:3", fontName: Symbol("mixed") } } };
+
+    const result = sanitizeSymbols(input);
+    expect(result).not.toBe(input);
+    expect(result.data.clean).toBe(clean);
+    expect(result.data.dirty).toEqual({ id: "1:3", fontName: "mixed" });
+  });
+
+  it("reports a throwing getter as 'mixed'", () => {
+    const input = {
+      id: "1:1",
+      get fills(): any {
+        throw new Error("node removed");
+      },
+    };
+    expect(sanitizeSymbols(input)).toEqual({ id: "1:1", fills: "mixed" });
+  });
+});
+
+// ── mixed-property handling ──────────────────────────────────────────────────
+
+describe("mixed stroke properties", () => {
+  const strokedNode = (overrides: any) => ({
+    id: "1:1",
+    name: "Card",
+    type: "FRAME",
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 50,
+    rotation: 0,
+    strokes: [{ type: "SOLID", color: { r: 0, g: 0, b: 0 }, opacity: 1 }],
+    dashPattern: [],
+    ...overrides,
+  });
+
+  it("expands mixed strokeWeight into per-side weights", async () => {
+    const styles = await serializeStyles(
+      strokedNode({
+        strokeWeight: Symbol("mixed"),
+        strokeTopWeight: 0,
+        strokeRightWeight: 0,
+        strokeBottomWeight: 1,
+        strokeLeftWeight: 0,
+      }),
+    );
+    expect(styles.strokeWeight).toEqual({ top: 0, right: 0, bottom: 1, left: 0 });
+  });
+
+  it("keeps a uniform strokeWeight as a number", async () => {
+    const styles = await serializeStyles(strokedNode({ strokeWeight: 2 }));
+    expect(styles.strokeWeight).toBe(2);
+  });
+
+  it("omits a zero strokeWeight", async () => {
+    const styles = await serializeStyles(strokedNode({ strokeWeight: 0 }));
+    expect(styles.strokeWeight).toBeUndefined();
+  });
+
+  it("reports mixed strokeCap and strokeJoin as 'mixed'", async () => {
+    const styles = await serializeStyles(
+      strokedNode({
+        strokeWeight: 1.5,
+        strokeCap: Symbol("mixed"),
+        strokeJoin: Symbol("mixed"),
+      }),
+    );
+    expect(styles.strokeCap).toBe("mixed");
+    expect(styles.strokeJoin).toBe("mixed");
+  });
+});
+
+// Invariant: no Symbol may survive serialization. figma.mixed is a Symbol and
+// figma.ui.postMessage throws "Cannot unwrap symbol" on it, so a single leaked
+// property fails the whole request. This guards every mixable property at once,
+// including ones added later.
+describe("serializeNode symbol invariant", () => {
+  const findSymbols = (value: any, path = "$", out: string[] = []): string[] => {
+    if (typeof value === "symbol") out.push(path);
+    else if (value && typeof value === "object")
+      for (const key of Object.keys(value)) findSymbols(value[key], `${path}.${key}`, out);
+    return out;
+  };
+
+  const MIXED = () => Symbol("figma.mixed");
+
+  it("emits no symbols for a node with every mixable property mixed", async () => {
+    const node: any = {
+      id: "1:1",
+      name: "All Mixed",
+      type: "TEXT",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 20,
+      rotation: 0,
+      fills: MIXED(),
+      strokes: MIXED(),
+      strokeWeight: MIXED(),
+      strokeTopWeight: 0,
+      strokeRightWeight: 0,
+      strokeBottomWeight: 1,
+      strokeLeftWeight: 0,
+      strokeCap: MIXED(),
+      strokeJoin: MIXED(),
+      dashPattern: [],
+      effects: MIXED(),
+      cornerRadius: MIXED(),
+      topLeftRadius: 4,
+      topRightRadius: 4,
+      bottomRightRadius: 0,
+      bottomLeftRadius: 0,
+      opacity: 1,
+      characters: "hello",
+      fontSize: MIXED(),
+      fontName: MIXED(),
+      fontWeight: MIXED(),
+      textDecoration: MIXED(),
+      lineHeight: MIXED(),
+      letterSpacing: MIXED(),
+      textAlignHorizontal: MIXED(),
+      textAlignVertical: MIXED(),
+      textAutoResize: "NONE",
+      paragraphSpacing: 0,
+      paragraphIndent: 0,
+    };
+
+    const result = await serializeNode(node);
+    expect(findSymbols(result)).toEqual([]);
+  });
+
+  it("emits no symbols for mixed properties nested in children", async () => {
+    const child = {
+      id: "1:2",
+      name: "Icon",
+      type: "VECTOR",
+      x: 0,
+      y: 0,
+      width: 24,
+      height: 24,
+      rotation: 0,
+      strokes: [{ type: "SOLID", color: { r: 0, g: 0, b: 0 }, opacity: 1 }],
+      strokeWeight: 1.5,
+      strokeCap: MIXED(),
+      strokeJoin: MIXED(),
+      dashPattern: [],
+      vectorPaths: [{ windingRule: "NONZERO", data: "M0 0L24 24" }],
+    };
+    const parent: any = {
+      id: "1:1",
+      name: "Row",
+      type: "FRAME",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 50,
+      rotation: 0,
+      fills: MIXED(),
+      children: [child],
+    };
+
+    const result = await serializeNode(parent);
+    expect(findSymbols(result)).toEqual([]);
+    expect(result.children[0].styles.strokeCap).toBe("mixed");
+  });
+});
+
+// ── serializeReactions ───────────────────────────────────────────────────────
+
+describe("serializeReactions", () => {
+  it("keeps every entry of the actions array", () => {
+    const result = serializeReactions([
+      {
+        trigger: { type: "ON_CLICK" },
+        actions: [
+          { type: "NODE", destinationId: "2:5", navigation: "NAVIGATE", transition: { type: "SMART_ANIMATE" } },
+          { type: "URL", url: "https://example.com" },
+        ],
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        actions: [
+          { type: "NODE", destinationId: "2:5", navigation: "NAVIGATE", transition: { type: "SMART_ANIMATE" } },
+          { type: "URL", url: "https://example.com" },
+        ],
+        trigger: { type: "ON_CLICK" },
+      },
+    ]);
+  });
+
+  it("falls back to the deprecated single action field", () => {
+    const result = serializeReactions([
+      { trigger: { type: "ON_HOVER" }, action: { type: "BACK" } },
+    ]);
+    expect(result).toEqual([{ actions: [{ type: "BACK" }], trigger: { type: "ON_HOVER" } }]);
+  });
+
+  it("keeps the trigger delay and omits actions when there are none", () => {
+    const result = serializeReactions([
+      { trigger: { type: "AFTER_TIMEOUT", delay: 2 }, actions: [] },
+    ]);
+    expect(result).toEqual([{ trigger: { type: "AFTER_TIMEOUT", delay: 2 } }]);
+  });
+
+  it("returns undefined for mixed, empty, or missing reactions", () => {
+    expect(serializeReactions(Symbol("mixed"))).toBeUndefined();
+    expect(serializeReactions([])).toBeUndefined();
+    expect(serializeReactions(undefined)).toBeUndefined();
+  });
+
+  it("surfaces reactions on a serialized node", async () => {
+    const result = await serializeNode({
+      id: "1:1",
+      name: "Button",
+      type: "FRAME",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 40,
+      rotation: 0,
+      reactions: [{ trigger: { type: "ON_CLICK" }, actions: [{ type: "NODE", destinationId: "2:5" }] }],
+    });
+    expect(result.reactions).toEqual([
+      { actions: [{ type: "NODE", destinationId: "2:5" }], trigger: { type: "ON_CLICK" } },
+    ]);
+  });
+});
+
+// ── failure containment ──────────────────────────────────────────────────────
+
+describe("serializeNode failure containment", () => {
+  const baseProps = { x: 0, y: 0, width: 10, height: 10, rotation: 0 };
+
+  it("degrades a failing child to an identity stub and keeps its siblings", async () => {
+    const parent: any = {
+      id: "1:1",
+      name: "Row",
+      type: "FRAME",
+      ...baseProps,
+      children: [
+        {
+          id: "1:2",
+          name: "Broken",
+          type: "RECTANGLE",
+          ...baseProps,
+          get fills(): any {
+            throw new Error("node removed");
+          },
+        },
+        { id: "1:3", name: "Ok", type: "RECTANGLE", ...baseProps },
+      ],
+    };
+
+    const result = await serializeNode(parent);
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0]).toEqual({ id: "1:2", name: "Broken", type: "RECTANGLE" });
+    expect(result.children[1].name).toBe("Ok");
+  });
+
+  it("serializes a variant COMPONENT whose componentPropertyDefinitions throws", async () => {
+    const variant: any = {
+      id: "1:1",
+      name: "Size=Large",
+      type: "COMPONENT",
+      ...baseProps,
+      get componentPropertyDefinitions(): any {
+        throw new Error("Cannot get componentPropertyDefinitions of a variant");
+      },
+    };
+
+    const result = await serializeNode(variant);
+    expect(result.id).toBe("1:1");
+    expect(result.componentPropertyDefinitions).toBeUndefined();
+  });
+});
+

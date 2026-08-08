@@ -12,6 +12,20 @@ export const toHex = (color: any) => {
   return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 };
 
+// #rrggbb, plus an aa suffix when not fully opaque. Alpha defaults to the
+// color's own `a`; paints pass their separate `opacity` instead.
+export const toHexWithAlpha = (color: any, alpha?: number) => {
+  const a = alpha != null ? alpha : color && color.a != null ? color.a : 1;
+  const hex = toHex(color);
+  if (a >= 1) return hex;
+  return (
+    hex +
+    Math.round(a * 255)
+      .toString(16)
+      .padStart(2, "0")
+  );
+};
+
 export const serializePaints = (paints: any) => {
   if (isMixed(paints)) return "mixed";
 
@@ -21,15 +35,7 @@ export const serializePaints = (paints: any) => {
     if (!paint || typeof paint !== "object") return paint;
 
     if (paint.type === "SOLID" && "color" in paint) {
-      const hex = toHex(paint.color);
-      const opacity = paint.opacity != null ? paint.opacity : 1;
-      if (opacity === 1) return hex;
-      return (
-        hex +
-        Math.round(opacity * 255)
-          .toString(16)
-          .padStart(2, "0")
-      );
+      return toHexWithAlpha(paint.color, paint.opacity != null ? paint.opacity : 1);
     }
 
     if (paint.type && typeof paint.type === "string" && paint.type.startsWith("GRADIENT_")) {
@@ -37,20 +43,10 @@ export const serializePaints = (paints: any) => {
         type: paint.type,
       };
       if (Array.isArray(paint.gradientStops)) {
-        gradientObj.gradientStops = paint.gradientStops.map((stop: any) => {
-          const stopColor = stop.color;
-          let hex = stopColor ? toHex(stopColor) : "#000000";
-          const alpha = stopColor && stopColor.a != null ? stopColor.a : 1;
-          if (alpha < 1) {
-            hex += Math.round(alpha * 255)
-              .toString(16)
-              .padStart(2, "0");
-          }
-          return {
-            position: pixelRound(stop.position ?? 0),
-            color: hex,
-          };
-        });
+        gradientObj.gradientStops = paint.gradientStops.map((stop: any) => ({
+          position: pixelRound(stop.position ?? 0),
+          color: stop.color ? toHexWithAlpha(stop.color) : "#000000",
+        }));
       }
       if (paint.gradientTransform) {
         gradientObj.gradientTransform = paint.gradientTransform;
@@ -133,19 +129,41 @@ export const serializeStyles = async (node: any) => {
     const strokes = serializePaints(node.strokes);
     if (strokes !== undefined) styles.strokes = strokes;
     
-    if ("strokeWeight" in node && node.strokeWeight !== 0) styles.strokeWeight = node.strokeWeight;
+    // strokeWeight is figma.mixed when sides differ (e.g. a bottom-only border).
+    // Expand to per-side weights so a divider stays distinguishable from a full border.
+    if ("strokeWeight" in node) {
+      if (isMixed(node.strokeWeight)) {
+        styles.strokeWeight = {
+          top: node.strokeTopWeight,
+          right: node.strokeRightWeight,
+          bottom: node.strokeBottomWeight,
+          left: node.strokeLeftWeight,
+        };
+      } else if (node.strokeWeight !== 0) {
+        styles.strokeWeight = node.strokeWeight;
+      }
+    }
     if ("strokeAlign" in node && node.strokeAlign !== "INSIDE") styles.strokeAlign = node.strokeAlign;
-    if ("strokeCap" in node && node.strokeCap !== "NONE") styles.strokeCap = node.strokeCap;
-    if ("strokeJoin" in node && node.strokeJoin !== "MITER") styles.strokeJoin = node.strokeJoin;
+    if ("strokeCap" in node) {
+      if (isMixed(node.strokeCap)) styles.strokeCap = "mixed";
+      else if (node.strokeCap !== "NONE") styles.strokeCap = node.strokeCap;
+    }
+    if ("strokeJoin" in node) {
+      if (isMixed(node.strokeJoin)) styles.strokeJoin = "mixed";
+      else if (node.strokeJoin !== "MITER") styles.strokeJoin = node.strokeJoin;
+    }
     if ("dashPattern" in node && node.dashPattern.length > 0) styles.dashPattern = node.dashPattern;
   }
 
-  if ("effects" in node && node.effects.length > 0) {
-    if (node.effectStyleId && typeof node.effectStyleId === "string") {
-      const style = await figma.getStyleByIdAsync(node.effectStyleId);
-      if (style) styles.effectStyle = style.name;
+  if ("effects" in node) {
+    const fx = serializeEffects(node.effects);
+    if (fx) {
+      if (node.effectStyleId && typeof node.effectStyleId === "string") {
+        const style = await figma.getStyleByIdAsync(node.effectStyleId);
+        if (style) styles.effectStyle = style.name;
+      }
+      styles.effects = fx;
     }
-    styles.effects = node.effects;
   }
 
   if ("opacity" in node && node.opacity < 1) {
@@ -245,6 +263,192 @@ export const serializeText = async (node: any, base: any) => {
   });
 };
 
+export const serializeEffects = (effects: any) => {
+  if (!effects || !Array.isArray(effects) || isMixed(effects)) return undefined;
+  const result = effects.map((e: any) => {
+    if (!e || typeof e !== "object") return e;
+    try {
+      const eff: any = { type: e.type };
+      if (e.visible === false) eff.visible = false;
+      if (e.color) eff.color = toHexWithAlpha(e.color);
+      if (e.offset) eff.offset = { x: pixelRound(e.offset.x), y: pixelRound(e.offset.y) };
+      if (e.radius != null) eff.radius = pixelRound(e.radius);
+      if (e.spread != null) eff.spread = pixelRound(e.spread);
+      if (e.blendMode && e.blendMode !== "NORMAL") eff.blendMode = e.blendMode;
+      return eff;
+    } catch {
+      return null;
+    }
+  }).filter((e) => e !== null);
+  return result.length > 0 ? result : undefined;
+};
+
+export const serializeLayoutGrids = (grids: any) => {
+  if (!grids || !Array.isArray(grids) || isMixed(grids)) return undefined;
+  const result = grids.map((g: any) => {
+    if (!g || typeof g !== "object") return g;
+    try {
+      const grid: any = { pattern: g.pattern };
+      if (g.sectionSize != null) grid.sectionSize = g.sectionSize;
+      if (g.visible === false) grid.visible = false;
+      if (g.color) grid.color = toHexWithAlpha(g.color);
+      if (g.alignment) grid.alignment = g.alignment;
+      if (g.gutterSize != null) grid.gutterSize = g.gutterSize;
+      if (g.offset != null) grid.offset = g.offset;
+      if (g.count != null) grid.count = g.count;
+      return grid;
+    } catch {
+      return null;
+    }
+  }).filter((g) => g !== null);
+  return result.length > 0 ? result : undefined;
+};
+
+export const serializeConstraints = (c: any) => {
+  if (!c || typeof c !== "object" || isMixed(c)) return undefined;
+  return { horizontal: c.horizontal, vertical: c.vertical };
+};
+
+export const serializeBoundVariables = (bv: any) => {
+  if (!bv || typeof bv !== "object" || isMixed(bv)) return undefined;
+  const result: Record<string, any> = {};
+  for (const key of Object.keys(bv)) {
+    try {
+      const val = bv[key];
+      if (Array.isArray(val)) {
+        result[key] = val.map((item) =>
+          item && typeof item === "object" && "id" in item ? { id: item.id, type: item.type } : item
+        );
+      } else if (val && typeof val === "object" && "id" in val) {
+        result[key] = { id: val.id, type: val.type };
+      } else if (!isMixed(val)) {
+        result[key] = val;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+};
+
+export const serializeComponentProperties = (cp: any) => {
+  if (!cp || typeof cp !== "object" || isMixed(cp)) return undefined;
+  const result: Record<string, any> = {};
+  for (const key of Object.keys(cp)) {
+    try {
+      const prop = cp[key];
+      if (prop && typeof prop === "object") {
+        const p: any = {
+          type: prop.type,
+          value: isMixed(prop.value) ? "mixed" : prop.value,
+        };
+        if (prop.preferredValues && Array.isArray(prop.preferredValues)) {
+          p.preferredValues = prop.preferredValues.map((pv: any) => ({
+            type: pv.type,
+            key: pv.key,
+          }));
+        }
+        result[key] = p;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+};
+
+export const serializeComponentPropertyDefinitions = (cpd: any) => {
+  if (!cpd || typeof cpd !== "object" || isMixed(cpd)) return undefined;
+  const result: Record<string, any> = {};
+  for (const key of Object.keys(cpd)) {
+    try {
+      const def = cpd[key];
+      if (def && typeof def === "object") {
+        const d: any = {
+          type: def.type,
+          defaultValue: isMixed(def.defaultValue) ? "mixed" : def.defaultValue,
+        };
+        if (def.variantOptions && Array.isArray(def.variantOptions)) {
+          d.variantOptions = def.variantOptions.slice();
+        }
+        if (def.preferredValues && Array.isArray(def.preferredValues)) {
+          d.preferredValues = def.preferredValues.map((pv: any) => ({
+            type: pv.type,
+            key: pv.key,
+          }));
+        }
+        result[key] = d;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+};
+
+const serializeAction = (a: any) => {
+  const action: any = { type: a.type };
+  if (a.destinationId) action.destinationId = a.destinationId;
+  if (a.navigation) action.navigation = a.navigation;
+  if (a.transition) action.transition = a.transition;
+  if (a.url) action.url = a.url;
+  return action;
+};
+
+export const serializeReactions = (reactions: any) => {
+  if (!reactions || !Array.isArray(reactions) || isMixed(reactions)) return undefined;
+  const result = reactions.map((r: any) => {
+    if (!r || typeof r !== "object") return null;
+    try {
+      const item: any = {};
+      // `actions` is the current field; `action` is deprecated but still populated
+      // on older reactions, so fall back to it rather than dropping the behavior.
+      const actions = Array.isArray(r.actions) ? r.actions : r.action ? [r.action] : [];
+      const serialized = actions.filter((a: any) => a && typeof a === "object").map(serializeAction);
+      if (serialized.length > 0) item.actions = serialized;
+      if (r.trigger) {
+        item.trigger = { type: r.trigger.type };
+        if (r.trigger.delay) item.trigger.delay = r.trigger.delay;
+      }
+      return item;
+    } catch {
+      return null;
+    }
+  }).filter((r) => r !== null);
+  return result.length > 0 ? result : undefined;
+};
+
+export const serializeVectorPaths = (paths: any) => {
+  if (!paths || !Array.isArray(paths) || isMixed(paths)) return undefined;
+  const result = paths.map((p: any) => {
+    try {
+      return {
+        data: p.data,
+        windingRule: p.windingRule,
+      };
+    } catch {
+      return null;
+    }
+  }).filter((p) => p !== null);
+  return result.length > 0 ? result : undefined;
+};
+
+export const serializeExportSettings = (settings: any) => {
+  if (!settings || !Array.isArray(settings) || isMixed(settings)) return undefined;
+  const result = settings.map((s: any) => {
+    try {
+      return {
+        format: s.format,
+        suffix: s.suffix,
+        constraint: s.constraint ? { type: s.constraint.type, value: s.constraint.value } : undefined,
+      };
+    } catch {
+      return null;
+    }
+  }).filter((s) => s !== null);
+  return result.length > 0 ? result : undefined;
+};
+
 export const serializeNode = async (node: any): Promise<any> => {
   const styles = await serializeStyles(node);
   const base: any = {
@@ -262,25 +466,28 @@ export const serializeNode = async (node: any): Promise<any> => {
     base.counterAxisAlignItems = node.counterAxisAlignItems;
     if (node.layoutWrap === "WRAP") base.layoutWrap = node.layoutWrap;
   }
-  
+
   if ("layoutPositioning" in node && node.layoutPositioning !== "AUTO") {
     base.layoutPositioning = node.layoutPositioning;
   }
-  
+
   if ("layoutScrollBehavior" in node && node.layoutScrollBehavior !== "NONE") {
     base.layoutScrollBehavior = node.layoutScrollBehavior;
   }
 
-  if ("layoutGrids" in node && node.layoutGrids.length > 0) {
-    base.layoutGrids = node.layoutGrids;
-  }
-  
-  if ("constraints" in node) {
-    base.constraints = node.constraints;
+  if ("layoutGrids" in node) {
+    const lg = serializeLayoutGrids(node.layoutGrids);
+    if (lg) base.layoutGrids = lg;
   }
 
-  if ("boundVariables" in node && node.boundVariables && Object.keys(node.boundVariables).length > 0) {
-    base.boundVariables = node.boundVariables;
+  if ("constraints" in node) {
+    const c = serializeConstraints(node.constraints);
+    if (c) base.constraints = c;
+  }
+
+  if ("boundVariables" in node) {
+    const bv = serializeBoundVariables(node.boundVariables);
+    if (bv) base.boundVariables = bv;
   }
 
   if ("isMask" in node && node.isMask) {
@@ -295,16 +502,19 @@ export const serializeNode = async (node: any): Promise<any> => {
     base.booleanOperation = node.booleanOperation;
   }
 
-  if ("vectorPaths" in node && node.vectorPaths.length > 0) {
-    base.vectorPaths = node.vectorPaths;
+  if ("vectorPaths" in node) {
+    const vp = serializeVectorPaths(node.vectorPaths);
+    if (vp) base.vectorPaths = vp;
   }
 
-  if ("reactions" in node && node.reactions.length > 0) {
-    base.reactions = node.reactions;
+  if ("reactions" in node) {
+    const rx = serializeReactions(node.reactions);
+    if (rx) base.reactions = rx;
   }
 
-  if ("exportSettings" in node && node.exportSettings.length > 0) {
-    base.exportSettings = node.exportSettings;
+  if ("exportSettings" in node) {
+    const es = serializeExportSettings(node.exportSettings);
+    if (es) base.exportSettings = es;
   }
 
   if ("visible" in node && node.visible === false) {
@@ -317,18 +527,72 @@ export const serializeNode = async (node: any): Promise<any> => {
 
   if (node.type === "INSTANCE") {
     base.mainComponentId = node.mainComponentId;
-    base.componentProperties = node.componentProperties;
+    const cp = serializeComponentProperties(node.componentProperties);
+    if (cp) base.componentProperties = cp;
   } else if (node.type === "COMPONENT" || node.type === "COMPONENT_SET") {
-    base.componentPropertyDefinitions = node.componentPropertyDefinitions;
+    // Reading componentPropertyDefinitions throws on a COMPONENT that is a
+    // variant inside a COMPONENT_SET — the definitions live on the set.
+    try {
+      const cpd = serializeComponentPropertyDefinitions(node.componentPropertyDefinitions);
+      if (cpd) base.componentPropertyDefinitions = cpd;
+    } catch {
+      // variant: definitions belong to the parent set
+    }
   }
 
   if (node.type === "TEXT") return serializeText(node, base);
   if ("children" in node) {
-    return Object.assign({}, base, {
-      children: await Promise.all(node.children.map((child: any) => serializeNode(child))),
-    });
+    // A child that fails to serialize degrades to an identity stub rather than
+    // taking down the whole tree.
+    const children = await Promise.all(
+      node.children.map(async (child: any) => {
+        try {
+          return await serializeNode(child);
+        } catch {
+          return { id: child.id, name: child.name, type: child.type };
+        }
+      })
+    );
+    return Object.assign({}, base, { children });
   }
   return base;
+};
+
+// Replaces every Symbol (figma.mixed) with the string "mixed" so the payload can
+// cross the plugin/UI boundary. Operates on already-serialized plain objects.
+// The serializers handle mixed values themselves, so this is a last-resort net:
+// subtrees that need no rewriting are returned as-is rather than deep-cloned,
+// which keeps a clean document tree from being copied twice on every request.
+export const sanitizeSymbols = (obj: any): any => {
+  if (typeof obj === "symbol") return "mixed";
+  if (obj === null || typeof obj !== "object") return obj;
+
+  if (Array.isArray(obj)) {
+    let changed = false;
+    const result = obj.map((item) => {
+      const sanitized = sanitizeSymbols(item);
+      if (sanitized !== item) changed = true;
+      return sanitized;
+    });
+    return changed ? result : obj;
+  }
+
+  let changed = false;
+  const result: any = {};
+  for (const key of Object.keys(obj)) {
+    let sanitized: any;
+    try {
+      const raw = obj[key];
+      sanitized = sanitizeSymbols(raw);
+      if (sanitized !== raw) changed = true;
+    } catch {
+      // A throwing getter is as unusable as a symbol — report it the same way.
+      sanitized = "mixed";
+      changed = true;
+    }
+    result[key] = sanitized;
+  }
+  return changed ? result : obj;
 };
 
 // deduplicateStyles does a two-pass walk over a serialized node tree.

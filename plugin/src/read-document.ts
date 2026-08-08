@@ -1,4 +1,4 @@
-import { serializeNode, getBounds, serializeStyles, isMixed, deduplicateStyles } from "./serializers";
+import { serializeNode, getBounds, serializeStyles, isMixed, deduplicateStyles, serializePaints } from "./serializers";
 
 export const handleReadDocumentRequest = async (request: any) => {
   switch (request.type) {
@@ -90,8 +90,10 @@ export const handleReadDocumentRequest = async (request: any) => {
             propChanges.opacity = instChild.opacity;
           }
           if ("fills" in instChild && "fills" in compChild && !isMixed(instChild.fills) && !isMixed(compChild.fills)) {
-            if (JSON.stringify(instChild.fills) !== JSON.stringify(compChild.fills)) {
-              propChanges.fills = serializePaints(instChild.fills);
+            const instFills = serializePaints(instChild.fills);
+            const compFills = serializePaints(compChild.fills);
+            if (JSON.stringify(instFills) !== JSON.stringify(compFills)) {
+              propChanges.fills = instFills;
             }
           }
 

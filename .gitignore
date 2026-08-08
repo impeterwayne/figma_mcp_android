@@ -24,3 +24,6 @@ example/
 .vscode/
 release
 localonly
+.idea/
+*.png
+figma-plugin.zip

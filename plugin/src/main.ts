@@ -1,6 +1,7 @@
 // Plugin core — entry point, UI bootstrap, and request dispatch.
 
 import { handleReadRequest } from "./read-handlers";
+import { sanitizeSymbols } from "./serializers";
 
 const sendStatus = () => {
   figma.ui.postMessage({
@@ -63,12 +64,15 @@ figma.ui.onmessage = async (message) => {
   if (message.type === "server-request") {
     const response = await handleRequest(message.payload);
     try {
-      figma.ui.postMessage(response);
+      const safeResponse = sanitizeSymbols(response);
+      figma.ui.postMessage(safeResponse);
     } catch (err) {
+      // Prefixed so a stale plugin bundle is distinguishable from a real failure:
+      // the pre-sanitize build reports the bare postMessage error instead.
       figma.ui.postMessage({
         type: response.type,
         requestId: response.requestId,
-        error: err instanceof Error ? err.message : String(err),
+        error: `post-sanitize: ${err instanceof Error ? err.message : String(err)}`,
       });
     }
   }
