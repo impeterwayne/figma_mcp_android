@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // ── renderResponse ────────────────────────────────────────────────────────────
@@ -317,5 +319,29 @@ func TestWriteBase64_InvalidBase64(t *testing.T) {
 	_, err := writeBase64("not-valid-base64!!!", filepath.Join(dir, "out.png"))
 	if err == nil {
 		t.Error("expected error for invalid base64 input")
+	}
+}
+
+func TestSubtreeParams(t *testing.T) {
+	// No arguments: the bounded default applies rather than an unlimited subtree.
+	params := subtreeParams(mcp.CallToolRequest{})
+	if params["depth"] != float64(defaultNodeDepth) {
+		t.Errorf("expected default depth %d, got %v", defaultNodeDepth, params["depth"])
+	}
+	if _, ok := params["detail"]; ok {
+		t.Errorf("detail should be omitted when unset, got %v", params["detail"])
+	}
+
+	// Explicit values win, including depth 0 and the -1 "unlimited" sentinel.
+	for _, depth := range []float64{0, 5, -1} {
+		params = subtreeParams(mcp.CallToolRequest{Params: mcp.CallToolParams{
+			Arguments: map[string]any{"depth": depth, "detail": "compact"},
+		}})
+		if params["depth"] != depth {
+			t.Errorf("expected depth %v, got %v", depth, params["depth"])
+		}
+		if params["detail"] != "compact" {
+			t.Errorf("expected detail compact, got %v", params["detail"])
+		}
 	}
 }

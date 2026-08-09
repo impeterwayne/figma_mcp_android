@@ -1,4 +1,16 @@
-import { serializeNode, getBounds, serializeStyles, isMixed, deduplicateStyles, serializePaints } from "./serializers";
+import { serializeNode, serializeBase, getBounds, isMixed, deduplicateStyles, serializePaints } from "./serializers";
+import type { SerializeOptions } from "./serializers";
+
+// Node lookups default to a bounded subtree: an unbounded one returns the whole
+// screen for a single get_node call, which is more text than a caller drilling
+// into one node can use. Callers that need more pass depth explicitly.
+const DEFAULT_NODE_DEPTH = 2;
+
+const serializeOptions = (params: any, defaultDepth: number): SerializeOptions => {
+  const depth = params && params.depth != null ? Number(params.depth) : defaultDepth;
+  const detail = (params && params.detail) || "full";
+  return { depth: Number.isFinite(depth) ? depth : defaultDepth, detail };
+};
 
 export const handleReadDocumentRequest = async (request: any) => {
   switch (request.type) {
@@ -12,12 +24,16 @@ export const handleReadDocumentRequest = async (request: any) => {
       };
     }
 
-    case "get_selection":
+    case "get_selection": {
+      const opts = serializeOptions(request.params, DEFAULT_NODE_DEPTH);
       return {
         type: request.type,
         requestId: request.requestId,
-        data: await Promise.all(figma.currentPage.selection.map((node) => serializeNode(node))),
+        data: await Promise.all(
+          figma.currentPage.selection.map((node) => serializeNode(node, opts)),
+        ),
       };
+    }
 
     case "get_node": {
       const nodeId = request.nodeIds && request.nodeIds[0];
@@ -25,16 +41,19 @@ export const handleReadDocumentRequest = async (request: any) => {
       const node = await figma.getNodeByIdAsync(nodeId);
       if (!node || node.type === "DOCUMENT")
         throw new Error(`Node not found: ${nodeId}`);
+      const raw = await serializeNode(node, serializeOptions(request.params, DEFAULT_NODE_DEPTH));
+      const { tree, globalVars } = deduplicateStyles(raw);
       return {
         type: request.type,
         requestId: request.requestId,
-        data: await serializeNode(node),
+        data: globalVars ? { ...tree, globalVars } : tree,
       };
     }
 
     case "get_nodes_info": {
       if (!request.nodeIds || request.nodeIds.length === 0)
         throw new Error("nodeIds is required for get_nodes_info");
+      const opts = serializeOptions(request.params, DEFAULT_NODE_DEPTH);
       const nodes = await Promise.all(
         request.nodeIds.map((id: string) => figma.getNodeByIdAsync(id)),
       );
@@ -44,7 +63,7 @@ export const handleReadDocumentRequest = async (request: any) => {
         data: await Promise.all(
           nodes
             .filter((n) => n !== null && n.type !== "DOCUMENT")
-            .map((n) => serializeNode(n)),
+            .map((n) => serializeNode(n, opts)),
         ),
       };
     }
@@ -58,17 +77,7 @@ export const handleReadDocumentRequest = async (request: any) => {
       const dedupeComponents = !!(request.params && request.params.dedupeComponents);
       const componentDefs = new Map<string, any>();
 
-      const serializeForDetail = async (n: any) => {
-        const base = { id: n.id, name: n.name, type: n.type, bounds: getBounds(n) };
-        if (detail === "minimal") return base;
-        const styles = await serializeStyles(n);
-        const result: any = Object.assign({}, base);
-        if (Object.keys(styles).length > 0) result.styles = styles;
-        if ("opacity" in n && n.opacity !== 1) result.opacity = n.opacity;
-        if ("visible" in n && !n.visible) result.visible = false;
-        if (detail === "compact") return result;
-        return await serializeNode(n);
-      };
+      const serializeForDetail = (n: any) => serializeBase(n, detail);
 
       const extractInstanceOverrides = async (
         instanceNode: any,
@@ -164,30 +173,6 @@ export const handleReadDocumentRequest = async (request: any) => {
           if (overrides.length > 0) result.overrides = overrides;
           return result;
         }
-        if (detail === "full") {
-          const serialized = await serializeNode(node);
-          if (currentDepth >= depth && serialized.children) {
-            return Object.assign({}, serialized, {
-              children: undefined,
-              childCount: node.children ? node.children.length : 0,
-            });
-          }
-          if (serialized.children) {
-            const childNodes = await Promise.all(
-              serialized.children.map((child: any) =>
-                figma.getNodeByIdAsync(child.id),
-              ),
-            );
-            const serializedChildren = await Promise.all(
-              childNodes
-                .filter((n) => n !== null && n.type !== "DOCUMENT")
-                .map((n) => serializeWithDepth(n, currentDepth + 1)),
-            );
-            return Object.assign({}, serialized, { children: serializedChildren });
-          }
-          return serialized;
-        }
-
         const serialized = await serializeForDetail(node);
         const hasChildren = "children" in node && node.children.length > 0;
         if (!hasChildren) return serialized;

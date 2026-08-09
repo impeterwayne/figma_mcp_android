@@ -179,8 +179,14 @@ func TestHandlers_SaveScreenshots(t *testing.T) {
 func TestHandlers_ConvertSVGToAndroidDrawable(t *testing.T) {
 	s, _ := newTestServer(t)
 	callTool(t, s, "convert_svg_to_android_drawable", map[string]any{
-		"svg":            `<svg viewBox="0 0 24 24"><path d="M2 2 L22 2 L22 22 Z" fill="#123456"/></svg>`,
-		"floatPrecision": float64(2),
+		"svgPath": writeTestSVG(t, `<svg viewBox="0 0 24 24"><path d="M2 2 L22 2 L22 22 Z" fill="#123456"/></svg>`),
+	})
+
+	callTool(t, s, "convert_svg_to_android_drawable", map[string]any{
+		"items": []any{
+			map[string]any{"svgPath": writeTestSVG(t, `<svg viewBox="0 0 24 24"><path d="M2 2 L22 2 L22 22 Z" fill="#123456"/></svg>`)},
+			map[string]any{"svgPath": writeTestSVG(t, `<svg viewBox="0 0 24 24"><path d="M4 4 L20 4 L20 20 Z" fill="#654321"/></svg>`), "tint": "#FF000000"},
+		},
 	})
 }
 

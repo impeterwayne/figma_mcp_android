@@ -7,6 +7,30 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// Shared wording and plumbing for the node-lookup tools, which return a bounded
+// subtree so a single lookup on a screen frame doesn't dump the whole design.
+const (
+	defaultNodeDepth = 2
+
+	defaultDepthNote = "its subtree down to 2 levels of children by default; nodes at the cutoff report `childCount` instead of `children`, so call again on those IDs to go deeper."
+
+	depthParamDoc = "Levels of children to include below each node (default 2). 0 returns the node alone with childCount; -1 means unlimited (can be very large)."
+
+	detailParamDoc = "Property verbosity: minimal (id/name/type/bounds only), compact (+styles/opacity/visible), full (everything, default)"
+)
+
+// subtreeParams builds the depth/detail params shared by the node-lookup tools.
+func subtreeParams(req mcp.CallToolRequest) map[string]interface{} {
+	params := map[string]interface{}{"depth": float64(defaultNodeDepth)}
+	if d, ok := req.GetArguments()["depth"].(float64); ok {
+		params["depth"] = d
+	}
+	if detail, ok := req.GetArguments()["detail"].(string); ok && detail != "" {
+		params["detail"] = detail
+	}
+	return params
+}
+
 func registerReadDocumentTools(s *server.MCPServer, node *Node) {
 	s.AddTool(mcp.NewTool("get_document",
 		mcp.WithDescription("Get the full node tree of the current page (not the whole file — only the active page). Returns all nodes recursively and can be very large. Prefer get_design_context for exploration or when token efficiency matters."),
@@ -21,32 +45,41 @@ func registerReadDocumentTools(s *server.MCPServer, node *Node) {
 	), makeHandler(node, "get_metadata", nil, nil))
 
 	s.AddTool(mcp.NewTool("get_selection",
-		mcp.WithDescription("Get the nodes currently selected in Figma. Returns an empty array if nothing is selected. Use get_design_context or get_node to retrieve deeper detail about a specific node by ID."),
-	), makeHandler(node, "get_selection", nil, nil))
+		mcp.WithDescription("Get the nodes currently selected in Figma. Returns an empty array if nothing is selected. Each node comes back with "+defaultDepthNote+" Use get_design_context or get_node to retrieve deeper detail about a specific node by ID."),
+		mcp.WithNumber("depth", mcp.Description(depthParamDoc)),
+		mcp.WithString("detail", mcp.Description(detailParamDoc)),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		resp, err := node.Send(ctx, "get_selection", nil, subtreeParams(req))
+		return renderResponse(resp, err)
+	})
 
 	s.AddTool(mcp.NewTool("get_node",
-		mcp.WithDescription("Get a single node by ID with full detail. Use get_nodes_info to fetch multiple nodes in one round-trip instead of calling this repeatedly. Node ID must be colon format e.g. '4029:12345', never hyphens."),
+		mcp.WithDescription("Get a single node by ID, with "+defaultDepthNote+" Raise depth (or lower detail) deliberately — a whole screen at unlimited depth is a very large response. Use get_nodes_info to fetch multiple nodes in one round-trip instead of calling this repeatedly. Node ID must be colon format e.g. '4029:12345', never hyphens."),
 		mcp.WithString("nodeId",
 			mcp.Required(),
 			mcp.Description("Node ID in colon format e.g. '4029:12345'"),
 		),
+		mcp.WithNumber("depth", mcp.Description(depthParamDoc)),
+		mcp.WithString("detail", mcp.Description(detailParamDoc)),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		nodeID, _ := req.GetArguments()["nodeId"].(string)
-		resp, err := node.Send(ctx, "get_node", []string{nodeID}, nil)
+		resp, err := node.Send(ctx, "get_node", []string{nodeID}, subtreeParams(req))
 		return renderResponse(resp, err)
 	})
 
 	s.AddTool(mcp.NewTool("get_nodes_info",
-		mcp.WithDescription("Get full details for multiple nodes by ID in one round-trip. Prefer this over calling get_node repeatedly when you need several nodes."),
+		mcp.WithDescription("Get details for multiple nodes by ID in one round-trip, each with "+defaultDepthNote+" Prefer this over calling get_node repeatedly when you need several nodes."),
 		mcp.WithArray("nodeIds",
 			mcp.Required(),
 			mcp.Description("List of node IDs in colon format e.g. ['4029:12345', '4029:67890']"),
 			mcp.WithStringItems(),
 		),
+		mcp.WithNumber("depth", mcp.Description(depthParamDoc)),
+		mcp.WithString("detail", mcp.Description(detailParamDoc)),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		raw, _ := req.GetArguments()["nodeIds"].([]interface{})
 		nodeIDs := toStringSlice(raw)
-		resp, err := node.Send(ctx, "get_nodes_info", nodeIDs, nil)
+		resp, err := node.Send(ctx, "get_nodes_info", nodeIDs, subtreeParams(req))
 		return renderResponse(resp, err)
 	})
 

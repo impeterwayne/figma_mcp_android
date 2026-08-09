@@ -375,6 +375,12 @@ describe("serializeStyles", () => {
     const result = await serializeStyles(node);
     expect(result.padding).toEqual({ top: 5, right: 20, bottom: 15, left: 10 });
   });
+
+  it("omits all-zero padding", async () => {
+    const node = { paddingLeft: 0, paddingRight: 0, paddingTop: 0, paddingBottom: 0 };
+    const result = await serializeStyles(node);
+    expect(result.padding).toBeUndefined();
+  });
 });
 
 // ── serializeText ─────────────────────────────────────────────────────────────
@@ -541,6 +547,108 @@ describe("serializeNode", () => {
     const result = await serializeNode(node);
     expect(result.children).toHaveLength(1);
     expect(result.children[0].id).toBe("1:4");
+  });
+});
+
+// ── serializeNode depth / detail ──────────────────────────────────────────────
+
+// A three-level tree: Root > Mid > Leaf.
+const nestedTree = () => ({
+  id: "1:1",
+  name: "Root",
+  type: "FRAME",
+  x: 0, y: 0, width: 200, height: 200,
+  opacity: 0.5,
+  visible: false,
+  children: [
+    {
+      id: "1:2",
+      name: "Mid",
+      type: "FRAME",
+      x: 0, y: 0, width: 100, height: 100,
+      children: [
+        { id: "1:3", name: "Leaf", type: "RECTANGLE", x: 0, y: 0, width: 10, height: 10 },
+      ],
+    },
+    { id: "1:4", name: "Sibling", type: "RECTANGLE", x: 0, y: 0, width: 10, height: 10 },
+  ],
+});
+
+describe("serializeNode depth", () => {
+  it("returns the whole subtree when no depth is given", async () => {
+    const result = await serializeNode(nestedTree());
+    expect(result.children[0].children[0].id).toBe("1:3");
+    expect(result.childCount).toBeUndefined();
+  });
+
+  it("depth 0 returns the node alone with childCount", async () => {
+    const result = await serializeNode(nestedTree(), { depth: 0 });
+    expect(result.id).toBe("1:1");
+    expect(result.children).toBeUndefined();
+    expect(result.childCount).toBe(2);
+  });
+
+  it("depth 1 includes children but stubs grandchildren", async () => {
+    const result = await serializeNode(nestedTree(), { depth: 1 });
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0].children).toBeUndefined();
+    expect(result.children[0].childCount).toBe(1);
+    // A childless node at the cutoff carries neither key.
+    expect(result.children[1].childCount).toBeUndefined();
+  });
+
+  it("depth 2 reaches the leaf", async () => {
+    const result = await serializeNode(nestedTree(), { depth: 2 });
+    expect(result.children[0].children[0].id).toBe("1:3");
+    expect(result.children[0].childCount).toBeUndefined();
+  });
+
+  it("treats negative depth as unlimited", async () => {
+    const result = await serializeNode(nestedTree(), { depth: -1 });
+    expect(result.children[0].children[0].id).toBe("1:3");
+  });
+});
+
+describe("serializeNode detail", () => {
+  it("minimal returns identity and bounds only", async () => {
+    const result = await serializeNode(nestedTree(), { detail: "minimal", depth: 1 });
+    expect(Object.keys(result).sort()).toEqual(["bounds", "children", "id", "name", "type"]);
+  });
+
+  it("compact adds styles, opacity and visible but not layout fields", async () => {
+    const result = await serializeNode(nestedTree(), { detail: "compact", depth: 0 });
+    expect(result.opacity).toBe(0.5);
+    expect(result.visible).toBe(false);
+    expect(result.clipsContent).toBeUndefined();
+  });
+
+  it("full is the default", async () => {
+    const result = await serializeNode(nestedTree(), { depth: 0 });
+    expect(result.styles).toBeDefined();
+  });
+});
+
+describe("serializeNode default-value trimming", () => {
+  it("omits MIN/MIN constraints but keeps others", async () => {
+    const defaulted = await serializeNode({
+      id: "1:1", name: "A", type: "RECTANGLE",
+      constraints: { horizontal: "MIN", vertical: "MIN" },
+    });
+    expect(defaulted.constraints).toBeUndefined();
+
+    const stretched = await serializeNode({
+      id: "1:2", name: "B", type: "RECTANGLE",
+      constraints: { horizontal: "STRETCH", vertical: "MIN" },
+    });
+    expect(stretched.constraints).toEqual({ horizontal: "STRETCH", vertical: "MIN" });
+  });
+
+  it("emits clipsContent only when clipping is off", async () => {
+    const clipping = await serializeNode({ id: "1:1", name: "A", type: "FRAME", clipsContent: true });
+    expect(clipping.clipsContent).toBeUndefined();
+
+    const overflowing = await serializeNode({ id: "1:2", name: "B", type: "FRAME", clipsContent: false });
+    expect(overflowing.clipsContent).toBe(false);
   });
 });
 

@@ -7,9 +7,23 @@ This document details the complete set of tools exposed by the Go Model Context 
 - `get_document`: Get the full node tree of the current page (not the whole file — only the active page). Returns all nodes recursively and can be very large. Prefer get_design_context for exploration or when token efficiency matters.
 - `get_pages`: List all pages in the document with their IDs and names. Lightweight alternative to get_document.
 - `get_metadata`: Get metadata about the current Figma document: file name, pages, current page.
-- `get_selection`: Get the nodes currently selected in Figma. Returns an empty array if nothing is selected.
-- `get_node`: Get a single node by ID with full detail.
-- `get_nodes_info`: Get full details for multiple nodes by ID in one round-trip.
+- `get_selection`: Get the nodes currently selected in Figma. Returns an empty array if nothing is selected. Accepts `depth` / `detail`.
+- `get_node`: Get a single node by ID. Accepts `depth` / `detail`.
+- `get_nodes_info`: Get details for multiple nodes by ID in one round-trip. Accepts `depth` / `detail`.
+
+### `depth` and `detail`
+
+`get_selection`, `get_node`, and `get_nodes_info` return a **bounded** subtree so a
+single lookup on a screen frame doesn't return the entire design:
+
+- `depth` (default `2`) — levels of children below each requested node. `0` returns the
+  node alone; `-1` means unlimited. Nodes at the cutoff carry `childCount` instead of
+  `children`, so a caller knows there is more to fetch and can call again on those IDs.
+- `detail` (default `full`) — `minimal` (id/name/type/bounds), `compact`
+  (+ styles/opacity/visible), or `full` (every serialized property).
+
+`get_node` additionally deduplicates repeated fill/stroke values into a top-level
+`globalVars.styles` map, the same way `get_document` does.
 - `get_design_context`: Get a depth-limited, token-efficient tree of the current selection or page. Use this instead of get_document when exploring large files.
 
 ## Search & Scan

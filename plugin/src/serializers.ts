@@ -191,12 +191,15 @@ export const serializeStyles = async (node: any) => {
   }
 
   if ("paddingLeft" in node) {
-    styles.padding = {
-      top: node.paddingTop,
-      right: node.paddingRight,
-      bottom: node.paddingBottom,
-      left: node.paddingLeft,
-    };
+    // Skip all-zero padding — it appears on every auto-layout frame and says nothing.
+    if (node.paddingTop || node.paddingRight || node.paddingBottom || node.paddingLeft) {
+      styles.padding = {
+        top: node.paddingTop,
+        right: node.paddingRight,
+        bottom: node.paddingBottom,
+        left: node.paddingLeft,
+      };
+    }
   }
 
   return styles;
@@ -449,15 +452,38 @@ export const serializeExportSettings = (settings: any) => {
   return result.length > 0 ? result : undefined;
 };
 
-export const serializeNode = async (node: any): Promise<any> => {
-  const styles = await serializeStyles(node);
-  const base: any = {
+export type DetailLevel = "minimal" | "compact" | "full";
+
+export interface SerializeOptions {
+  // Levels of children to include below the node. 0 returns the node alone
+  // (with childCount); omitted or negative means unlimited.
+  depth?: number;
+  // Per-node property verbosity. Defaults to "full".
+  detail?: DetailLevel;
+}
+
+// serializeBase serializes a node's own properties. Children are the caller's
+// job — see serializeNode — so depth limiting stays in one place.
+export const serializeBase = async (node: any, detail: DetailLevel = "full"): Promise<any> => {
+  const identity: any = {
     id: node.id,
     name: node.name,
     type: node.type,
     bounds: getBounds(node),
-    styles,
   };
+  if (detail === "minimal") return identity;
+
+  const styles = await serializeStyles(node);
+
+  if (detail === "compact") {
+    const compact: any = Object.assign({}, identity);
+    if (Object.keys(styles).length > 0) compact.styles = styles;
+    if ("opacity" in node && node.opacity !== 1) compact.opacity = node.opacity;
+    if ("visible" in node && !node.visible) compact.visible = false;
+    return compact;
+  }
+
+  const base: any = Object.assign({}, identity, { styles });
 
   if ("layoutMode" in node && node.layoutMode !== "NONE") {
     base.layoutMode = node.layoutMode;
@@ -481,8 +507,9 @@ export const serializeNode = async (node: any): Promise<any> => {
   }
 
   if ("constraints" in node) {
+    // MIN/MIN is Figma's default; emitting it on every node is pure noise.
     const c = serializeConstraints(node.constraints);
-    if (c) base.constraints = c;
+    if (c && !(c.horizontal === "MIN" && c.vertical === "MIN")) base.constraints = c;
   }
 
   if ("boundVariables" in node) {
@@ -494,8 +521,9 @@ export const serializeNode = async (node: any): Promise<any> => {
     base.isMask = true;
   }
 
-  if ("clipsContent" in node) {
-    base.clipsContent = node.clipsContent;
+  // Frames clip by default — only the deviation carries information.
+  if ("clipsContent" in node && node.clipsContent === false) {
+    base.clipsContent = false;
   }
 
   if ("booleanOperation" in node) {
@@ -541,21 +569,47 @@ export const serializeNode = async (node: any): Promise<any> => {
   }
 
   if (node.type === "TEXT") return serializeText(node, base);
-  if ("children" in node) {
-    // A child that fails to serialize degrades to an identity stub rather than
-    // taking down the whole tree.
-    const children = await Promise.all(
-      node.children.map(async (child: any) => {
-        try {
-          return await serializeNode(child);
-        } catch {
-          return { id: child.id, name: child.name, type: child.type };
-        }
-      })
-    );
-    return Object.assign({}, base, { children });
-  }
   return base;
+};
+
+// serializeNode serializes a node and its subtree. Without a depth limit the
+// payload grows with the whole subtree, which is far more text than a caller
+// asking about one node usually wants — pass opts.depth to stop early. Nodes at
+// the cutoff carry childCount instead of children, so the caller knows there is
+// more to fetch.
+export const serializeNode = async (
+  node: any,
+  opts: SerializeOptions = {},
+): Promise<any> => {
+  const detail = opts.detail ?? "full";
+  const remaining = opts.depth == null || opts.depth < 0 ? Infinity : opts.depth;
+  return serializeSubtree(node, detail, remaining);
+};
+
+const serializeSubtree = async (
+  node: any,
+  detail: DetailLevel,
+  remaining: number,
+): Promise<any> => {
+  const base = await serializeBase(node, detail);
+
+  if (!("children" in node) || node.children.length === 0) return base;
+  if (remaining <= 0) {
+    return Object.assign({}, base, { childCount: node.children.length });
+  }
+
+  // A child that fails to serialize degrades to an identity stub rather than
+  // taking down the whole tree.
+  const children = await Promise.all(
+    node.children.map(async (child: any) => {
+      try {
+        return await serializeSubtree(child, detail, remaining - 1);
+      } catch {
+        return { id: child.id, name: child.name, type: child.type };
+      }
+    })
+  );
+  return Object.assign({}, base, { children });
 };
 
 // Replaces every Symbol (figma.mixed) with the string "mixed" so the payload can

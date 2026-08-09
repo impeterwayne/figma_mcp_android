@@ -7,4 +7,5 @@ func RegisterAll(s *server.MCPServer) {
 	addReadDesignStrategy(s)
 	addReactionToConnectorStrategy(s)
 	addStyleAuditStrategy(s)
+	addSVGToDrawableStrategy(s)
 }

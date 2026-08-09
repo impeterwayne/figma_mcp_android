@@ -85,6 +85,31 @@ func TestValidateRPC_GetNodesInfo(t *testing.T) {
 	}
 }
 
+func TestValidateRPC_SubtreeDetail(t *testing.T) {
+	cases := []struct {
+		tool    string
+		nodeIDs []string
+	}{
+		{"get_node", []string{"1:1"}},
+		{"get_nodes_info", []string{"1:1"}},
+		{"get_selection", nil},
+	}
+	for _, c := range cases {
+		if msg := ValidateRPC(c.tool, c.nodeIDs, map[string]interface{}{"detail": "huge"}); msg == "" {
+			t.Errorf("%s: expected error for invalid detail", c.tool)
+		}
+		for _, d := range []string{"minimal", "compact", "full"} {
+			if msg := ValidateRPC(c.tool, c.nodeIDs, map[string]interface{}{"detail": d}); msg != "" {
+				t.Errorf("%s: unexpected error for detail=%s: %s", c.tool, d, msg)
+			}
+		}
+		// depth -1 means unlimited on these tools, unlike get_design_context.
+		if msg := ValidateRPC(c.tool, c.nodeIDs, map[string]interface{}{"depth": float64(-1)}); msg != "" {
+			t.Errorf("%s: unexpected error for depth=-1: %s", c.tool, msg)
+		}
+	}
+}
+
 func TestValidateRPC_GetScreenshot(t *testing.T) {
 	// invalid format
 	msg := ValidateRPC("get_screenshot", []string{"1:1"}, map[string]interface{}{"format": "GIF"})
@@ -234,16 +259,46 @@ func TestValidateRPC_ScanNodesByTypes(t *testing.T) {
 
 func TestValidateRPC_ConvertSVGToAndroidDrawable(t *testing.T) {
 	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, nil); msg == "" {
-		t.Error("expected error when svg and svgPath are both missing")
+		t.Error("expected error when svgPath is missing")
 	}
-	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svg": "<svg/>", "svgPath": "icon.svg"}); msg != "" {
-		t.Errorf("expected source-compatible behavior when both svg and svgPath are provided, got: %s", msg)
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svg": "<svg/>"}); msg == "" {
+		t.Error("expected error when only inline svg is provided")
 	}
-	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svg": "<svg/>", "floatPrecision": float64(7)}); msg == "" {
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svgPath": "icon.svg", "floatPrecision": float64(7)}); msg == "" {
 		t.Error("expected error for out-of-range floatPrecision")
 	}
-	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svg": "<svg/>", "floatPrecision": float64(2)}); msg != "" {
+	// 0 is out of range on purpose: the converter silently treats it as 2.
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svgPath": "icon.svg", "floatPrecision": float64(0)}); msg == "" {
+		t.Error("expected error for floatPrecision=0")
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svgPath": "icon.svg", "floatPrecision": float64(2)}); msg != "" {
 		t.Errorf("unexpected error: %s", msg)
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svgPath": "icon.svg"}); msg != "" {
+		t.Errorf("unexpected error: %s", msg)
+	}
+
+	batch := []interface{}{
+		map[string]interface{}{"svgPath": "a.svg", "outputPath": "res/drawable/ic_a.xml"},
+		map[string]interface{}{"svgPath": "b.svg", "floatPrecision": float64(3)},
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"items": batch}); msg != "" {
+		t.Errorf("unexpected error for batch items: %s", msg)
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"svgPath": "icon.svg", "items": batch}); msg == "" {
+		t.Error("expected error when svgPath and items are combined")
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"items": []interface{}{}}); msg == "" {
+		t.Error("expected error for empty items")
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"items": []interface{}{"a.svg"}}); msg == "" {
+		t.Error("expected error when an item is not an object")
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"items": []interface{}{map[string]interface{}{"outputPath": "ic.xml"}}}); msg == "" {
+		t.Error("expected error when an item has no svgPath")
+	}
+	if msg := ValidateRPC("convert_svg_to_android_drawable", nil, map[string]interface{}{"items": []interface{}{map[string]interface{}{"svgPath": "a.svg", "floatPrecision": float64(0)}}}); msg == "" {
+		t.Error("expected error for out-of-range per-item floatPrecision")
 	}
 }
 

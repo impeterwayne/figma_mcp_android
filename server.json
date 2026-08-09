@@ -6,12 +6,12 @@
     "url": "https://github.com/impeterwayne/figma-mcp-android",
     "source": "github"
   },
-  "version": "0.1.2",
+  "version": "0.1.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@impeterwayne/figma-mcp-android",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "transport": {
         "type": "stdio"
       }

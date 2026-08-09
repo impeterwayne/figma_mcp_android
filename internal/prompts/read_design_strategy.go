@@ -34,7 +34,12 @@ func addReadDesignStrategy(s *server.MCPServer) {
    c. Read componentProperties on each instance stub — variant selections, text overrides, boolean toggles
    d. Drill into specific instances with get_node only when an instance has unique overrides you need to inspect
 5. Use search_nodes to find nodes by name or type without dumping the entire tree
-6. Drill into specific nodes with get_node or get_nodes_info (prefer batch over single calls)
+6. Drill into specific nodes with get_node or get_nodes_info (prefer batch over single calls).
+   These return depth=2 of children by default — a node at the cutoff reports childCount
+   instead of children, so call again on that ID to go deeper. Widen deliberately:
+   raise depth one level at a time, and reach for depth=-1 (unlimited) only on small
+   subtrees such as a single icon or leaf component, never on a whole screen frame.
+   detail=minimal/compact trims per-node properties the same way get_design_context does.
 7. For text-heavy components, use scan_text_nodes to collect all copy at once
 8. Use scan_nodes_by_types to find all FRAME/COMPONENT/INSTANCE nodes in a subtree
 9. Call get_styles and get_variable_defs once per session to understand the design system
@@ -44,7 +49,7 @@ func addReadDesignStrategy(s *server.MCPServer) {
 13. Call get_screenshot last and only when visual confirmation is needed — it is expensive
 14. Node IDs use colon format: 4029:12345 — never use hyphens
 15. get_local_components returns componentSets and variantProperties for variant-aware inspection
-16. To extract vector assets (icons/illustrations) from Figma for Android apps, export the vector node using get_screenshot(format='SVG') or save_screenshots(format='SVG'), then pass the resulting SVG markup, base64 string, or svgPath to convert_svg_to_android_drawable to generate Android VectorDrawable XML (e.g. res/drawable/ic_*.xml)`),
+16. For vector assets (icons/illustrations) bound for an Android project, export the icon container node with save_screenshots(format='SVG') — convert_svg_to_android_drawable reads a file path (svgPath), not inline markup or base64 — see the svg_to_drawable_strategy prompt for the full flow, naming rules, and verification steps`),
 				),
 			},
 		), nil

@@ -18,11 +18,44 @@ import (
 
 var bridgeLogger = log.New(os.Stderr, "[bridge] ", 0)
 
+// Bridge inactivity timeouts. Both are refreshed by every progress update, so
+// they bound the gap between updates, not the total duration of a request.
+const (
+	// defaultBridgeTimeout applies to cheap, single-node requests.
+	defaultBridgeTimeout = 120 * time.Second
+	// heavyBridgeTimeout applies to requests that walk the document tree or
+	// rasterise images — on large files these routinely run for minutes.
+	heavyBridgeTimeout = 300 * time.Second
+)
+
+// heavyRequests are the request types that get heavyBridgeTimeout. get_node is
+// included because a node with a deep subtree is as expensive as a full scan.
+var heavyRequests = map[string]bool{
+	"get_document":        true,
+	"get_node":            true,
+	"get_nodes_info":      true,
+	"get_design_context":  true,
+	"search_nodes":        true,
+	"scan_text_nodes":     true,
+	"scan_nodes_by_types": true,
+	"export_tokens":       true,
+	"get_screenshot":      true,
+}
+
+// timeoutFor returns the inactivity timeout for a request type.
+func timeoutFor(requestType string) time.Duration {
+	if heavyRequests[requestType] {
+		return heavyBridgeTimeout
+	}
+	return defaultBridgeTimeout
+}
+
 // pendingEntry holds the response channel and inactivity timer for an in-flight request.
 type pendingEntry struct {
-	ch    chan BridgeResponse
-	timer *time.Timer
-	once  sync.Once // guards channel close/send — prevents panic on concurrent timeout + response
+	ch      chan BridgeResponse
+	timer   *time.Timer
+	timeout time.Duration // reused when a progress update refreshes the timer
+	once    sync.Once     // guards channel close/send — prevents panic on concurrent timeout + response
 }
 
 // Bridge manages the single WebSocket connection from the Figma plugin
@@ -105,7 +138,7 @@ func (b *Bridge) readLoop(conn *websocket.Conn) {
 			if ok {
 				// Stop before Reset to avoid the AfterFunc firing during Reset.
 				entry.timer.Stop()
-				entry.timer.Reset(60 * time.Second)
+				entry.timer.Reset(entry.timeout)
 				bridgeLogger.Printf("progress %s: %d%% %s", resp.RequestID, resp.Progress, resp.Message)
 			} else {
 				bridgeLogger.Printf("progress %s: %d%% %s (no pending entry — already resolved or timed out)", resp.RequestID, resp.Progress, resp.Message)
@@ -159,15 +192,11 @@ func (b *Bridge) Send(ctx context.Context, requestType string, nodeIDs []string,
 	}
 
 	ch := make(chan BridgeResponse, 1)
-	entry := &pendingEntry{ch: ch}
+	timeout := timeoutFor(requestType)
+	entry := &pendingEntry{ch: ch, timeout: timeout}
 
 	// Register before sending to avoid a race where the response
 	// arrives before we store the channel.
-	// get_document on large files can take longer; give it more headroom.
-	timeout := 30 * time.Second
-	if requestType == "get_document" {
-		timeout = 60 * time.Second
-	}
 	entry.timer = time.AfterFunc(timeout, func() {
 		bridgeLogger.Printf("→ %s %s timed out after %s", requestID, requestType, timeout)
 		b.mu.Lock()

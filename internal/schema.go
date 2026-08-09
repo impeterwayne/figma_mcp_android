@@ -40,6 +40,9 @@ func ValidateRPC(tool string, nodeIDs []string, params map[string]interface{}) s
 		if !ValidNodeID(nodeIDs[0]) {
 			return fmt.Sprintf("nodeId must use colon format e.g. 4029:12345, got: %s", nodeIDs[0])
 		}
+		if msg := validateDetail(params); msg != "" {
+			return msg
+		}
 
 	case "get_nodes_info":
 		if len(nodeIDs) == 0 {
@@ -49,6 +52,14 @@ func ValidateRPC(tool string, nodeIDs []string, params map[string]interface{}) s
 			if !ValidNodeID(id) {
 				return fmt.Sprintf("invalid nodeId: %s — must use colon format e.g. 4029:12345", id)
 			}
+		}
+		if msg := validateDetail(params); msg != "" {
+			return msg
+		}
+
+	case "get_selection":
+		if msg := validateDetail(params); msg != "" {
+			return msg
 		}
 
 	case "get_screenshot":
@@ -93,12 +104,8 @@ func ValidateRPC(tool string, nodeIDs []string, params map[string]interface{}) s
 				return "depth must be a non-negative number"
 			}
 		}
-		if detail, ok := params["detail"].(string); ok && detail != "" {
-			switch detail {
-			case "minimal", "compact", "full":
-			default:
-				return fmt.Sprintf("detail must be minimal, compact, or full, got: %s", detail)
-			}
+		if msg := validateDetail(params); msg != "" {
+			return msg
 		}
 
 	case "search_nodes":
@@ -148,21 +155,62 @@ func ValidateRPC(tool string, nodeIDs []string, params map[string]interface{}) s
 		}
 
 	case "convert_svg_to_android_drawable":
-		svg, _ := params["svg"].(string)
 		svgPath, _ := params["svgPath"].(string)
-		if strings.TrimSpace(svg) == "" && strings.TrimSpace(svgPath) == "" {
-			return "either svg or svgPath is required"
+		items, hasItems := params["items"].([]interface{})
+		if strings.TrimSpace(svgPath) == "" && !hasItems {
+			return "svgPath or items is required: write the SVG to a file (e.g. save_screenshots with format='SVG') and pass its path"
 		}
-		if precision, ok := params["floatPrecision"].(float64); ok {
-			if precision < 0 || precision > 6 || precision != float64(int(precision)) {
-				return "floatPrecision must be an integer between 0 and 6"
+		if strings.TrimSpace(svgPath) != "" && hasItems {
+			return "svgPath and items cannot be combined: pass every asset as an entry in items"
+		}
+		if hasItems && len(items) == 0 {
+			return "items must not be empty"
+		}
+		for i, entry := range items {
+			fields, ok := entry.(map[string]interface{})
+			if !ok {
+				return fmt.Sprintf("items[%d] must be an object with an svgPath", i)
 			}
+			if path, _ := fields["svgPath"].(string); strings.TrimSpace(path) == "" {
+				return fmt.Sprintf("items[%d].svgPath is required", i)
+			}
+			if msg := validateSVGFloatPrecision(fields); msg != "" {
+				return fmt.Sprintf("items[%d]: %s", i, msg)
+			}
+		}
+		if msg := validateSVGFloatPrecision(params); msg != "" {
+			return msg
 		}
 	}
 
 	return ""
 }
 
+
+func validateSVGFloatPrecision(fields map[string]interface{}) string {
+	precision, ok := fields["floatPrecision"].(float64)
+	if !ok {
+		return ""
+	}
+	if precision < 1 || precision > 6 || precision != float64(int(precision)) {
+		return "floatPrecision must be an integer between 1 and 6"
+	}
+	return ""
+}
+
+// validateDetail checks the shared `detail` verbosity param. The node-lookup
+// tools accept depth -1 for "unlimited", so depth range checks stay per-tool.
+func validateDetail(params map[string]interface{}) string {
+	detail, ok := params["detail"].(string)
+	if !ok || detail == "" {
+		return ""
+	}
+	switch detail {
+	case "minimal", "compact", "full":
+		return ""
+	}
+	return fmt.Sprintf("detail must be minimal, compact, or full, got: %s", detail)
+}
 
 func validExportFormat(f string) bool {
 	switch f {
