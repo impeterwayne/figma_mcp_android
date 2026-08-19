@@ -97,7 +97,7 @@ Không có plugin thì server không lấy được dữ liệu, nên bước n�
 
 21 tool, tất cả đều chỉ đọc file Figma, cộng thêm một tool chuyển đổi file trên máy.
 
-### Duyệt tài liệu và node
+### Duyệt documents và node
 
 | Tool | Chức năng |
 |------|-----------|
