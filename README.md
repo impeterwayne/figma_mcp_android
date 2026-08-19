@@ -133,8 +133,6 @@ This server depends on the local plugin bridge.
 | `save_screenshots` | Exports nodes straight to disk, returning path, size, and dimensions — no base64 in the response. |
 | `convert_svg_to_android_drawable` | Converts SVG files on disk into Android VectorDrawable XML, one asset or a batch per call. |
 
-Android asset flow: call `save_screenshots` with `format: 'SVG'` on the icon container node (the COMPONENT/FRAME, not its VECTOR children), then pass the written path as `svgPath` to `convert_svg_to_android_drawable`. That tool takes a file path only — not inline markup or base64 — and deletes each source SVG once conversion succeeds, so export to throwaway paths. Batches run in parallel and one failing icon does not abort the rest. Raster art, layer effects, and blend modes are out of scope; export those as PNG/WebP into `res/drawable-*dpi`.
-
 ## Prompts
 
 | Prompt | Purpose |

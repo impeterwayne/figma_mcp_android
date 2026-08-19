@@ -133,15 +133,6 @@ Không có plugin thì server không lấy được dữ liệu, nên bước n�
 | `save_screenshots` | Chụp node và lưu thẳng thành file, trả về đường dẫn, dung lượng, kích thước — không kèm base64. |
 | `convert_svg_to_android_drawable` | Chuyển file SVG trên máy thành XML Android VectorDrawable, một hoặc nhiều file mỗi lần gọi. |
 
-Cách xuất icon cho Android: gọi `save_screenshots` với `format: 'SVG'` trên node bọc icon (COMPONENT/FRAME, đừng chọn node VECTOR bên trong), rồi đưa đường dẫn file vừa lưu vào `svgPath` của `convert_svg_to_android_drawable`.
-
-Vài điểm cần lưu ý với tool này:
-
-- Chỉ nhận đường dẫn file, không nhận nội dung SVG dán trực tiếp hay base64.
-- File SVG nguồn sẽ bị xóa sau khi chuyển xong, nên hãy xuất ra thư mục tạm, đừng trỏ vào SVG bạn còn cần giữ.
-- Chuyển nhiều file thì chạy song song, một file lỗi không làm hỏng những file còn lại.
-- Không dùng cho ảnh raster, layer effect hay blend mode — những thứ đó nên xuất PNG/WebP vào `res/drawable-*dpi`.
-
 ## Prompt
 
 | Prompt | Mục đích |
