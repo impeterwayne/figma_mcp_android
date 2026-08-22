@@ -133,15 +133,6 @@ This server depends on the local plugin bridge.
 | `save_screenshots` | Exports nodes straight to disk, returning path, size, and dimensions — no base64 in the response. |
 | `convert_svg_to_android_drawable` | Converts SVG files on disk into Android VectorDrawable XML, one asset or a batch per call. |
 
-## Prompts
-
-| Prompt | Purpose |
-|--------|---------|
-| `read_design_strategy` | Best practices for reading Figma designs with this server. |
-| `svg_to_drawable_strategy` | The full Figma vector to Android VectorDrawable workflow. |
-| `style_audit_strategy` | Audits a design for raw values used instead of linked styles or variables. |
-| `reaction_to_connector_strategy` | Analyzes prototype reactions and maps interaction flows. |
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
