@@ -133,15 +133,6 @@ Không có plugin thì server không lấy được dữ liệu, nên bước n�
 | `save_screenshots` | Chụp node và lưu thẳng thành file, trả về đường dẫn, dung lượng, kích thước — không kèm base64. |
 | `convert_svg_to_android_drawable` | Chuyển file SVG trên máy thành XML Android VectorDrawable, một hoặc nhiều file mỗi lần gọi. |
 
-## Prompt
-
-| Prompt | Mục đích |
-|--------|----------|
-| `read_design_strategy` | Cách đọc file Figma hiệu quả với server này. |
-| `svg_to_drawable_strategy` | Quy trình đầy đủ từ vector trong Figma sang Android VectorDrawable. |
-| `style_audit_strategy` | Rà soát thiết kế, tìm chỗ dùng giá trị thô thay vì style hoặc variable. |
-| `reaction_to_connector_strategy` | Phân tích reaction prototype và dựng lại luồng tương tác. |
-
 ## Giấy phép
 
 MIT. Xem [LICENSE](LICENSE).
